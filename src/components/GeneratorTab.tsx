@@ -1,14 +1,15 @@
 import { useState, useRef, useMemo } from "react";
-import { FileDown, Sparkles, Calendar, DollarSign, FileText } from "lucide-react";
+import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContractPreview } from "@/components/ContractPreview";
-import { loadClient, loadContractor } from "@/lib/contractDefaults";
+import { loadClient, loadContractor, loadSettings, getCurrentCounter, incrementCounter } from "@/lib/contractDefaults";
 import { numberToPolishWords } from "@/lib/numberToWords";
 import { getRandomDescription } from "@/lib/contractDescriptions";
+import { toast } from "@/hooks/use-toast";
 
 const months = [
   "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
@@ -29,12 +30,14 @@ export function GeneratorTab() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [subject, setSubject] = useState("");
+  const [counter, setCounter] = useState(() => getCurrentCounter(now.getMonth() + 1, now.getFullYear()));
   const previewRef = useRef<HTMLDivElement>(null);
 
   const client = loadClient();
   const contractor = loadContractor();
+  const settings = loadSettings();
 
-  const contractNumber = `W-01/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`;
+  const contractNumber = `${settings.prefix}${pad(counter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`;
   const startDate = `02.${pad(selectedMonth)}.${selectedYear}`;
   const lastDay = getLastDay(selectedMonth, selectedYear);
   const endDate = `${pad(lastDay)}.${pad(selectedMonth)}.${selectedYear}`;
@@ -42,6 +45,28 @@ export function GeneratorTab() {
 
   const currentYear = now.getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
+
+  // Update counter when month/year changes
+  const handleMonthChange = (v: string) => {
+    const m = Number(v);
+    setSelectedMonth(m);
+    setCounter(getCurrentCounter(m, selectedYear));
+  };
+
+  const handleYearChange = (v: string) => {
+    const y = Number(v);
+    setSelectedYear(y);
+    setCounter(getCurrentCounter(selectedMonth, y));
+  };
+
+  const handleConfirmContract = () => {
+    const nextCounter = incrementCounter(selectedMonth, selectedYear);
+    setCounter(nextCounter);
+    toast({
+      title: "Umowa zatwierdzona",
+      description: `Następna umowa w ${pad(selectedMonth)}/${selectedYear} będzie miała numer ${settings.prefix}${pad(nextCounter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`,
+    });
+  };
 
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return;
@@ -87,7 +112,7 @@ export function GeneratorTab() {
             )}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex items-end gap-3">
             <div className="flex-1">
               <Label className="flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-primary" />
@@ -95,7 +120,7 @@ export function GeneratorTab() {
               </Label>
               <Select
                 value={selectedMonth.toString()}
-                onValueChange={(v) => setSelectedMonth(Number(v))}
+                onValueChange={handleMonthChange}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -113,7 +138,7 @@ export function GeneratorTab() {
               <Label>Rok</Label>
               <Select
                 value={selectedYear.toString()}
-                onValueChange={(v) => setSelectedYear(Number(v))}
+                onValueChange={handleYearChange}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -168,10 +193,16 @@ export function GeneratorTab() {
           </div>
         </div>
 
-        <Button onClick={handleDownloadPdf} className="w-full" size="lg">
-          <FileDown className="mr-2 h-5 w-5" />
-          Pobierz PDF
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={handleDownloadPdf} className="flex-1" size="lg">
+            <FileDown className="mr-2 h-5 w-5" />
+            Pobierz PDF
+          </Button>
+          <Button onClick={handleConfirmContract} variant="outline" size="lg">
+            <CheckCircle className="mr-2 h-5 w-5" />
+            Zatwierdź
+          </Button>
+        </div>
       </div>
 
       {/* A4 Preview */}

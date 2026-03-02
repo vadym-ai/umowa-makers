@@ -1,30 +1,36 @@
 import { useEffect, useState } from "react";
-import { Building2, User, Save, Check } from "lucide-react";
+import { Building2, User, Save, Check, Hash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   ClientData,
   ContractorData,
+  ContractSettings,
   loadClient,
   loadContractor,
+  loadSettings,
   saveClient,
   saveContractor,
+  saveSettings,
 } from "@/lib/contractDefaults";
 
 export function SettingsTab() {
   const [client, setClient] = useState<ClientData>(loadClient);
   const [contractor, setContractor] = useState<ContractorData>(loadContractor);
+  const [settings, setSettings] = useState<ContractSettings>(loadSettings);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     saveClient(client);
     saveContractor(contractor);
-  }, [client, contractor]);
+    saveSettings(settings);
+  }, [client, contractor, settings]);
 
   const handleSave = () => {
     saveClient(client);
     saveContractor(contractor);
+    saveSettings(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -44,7 +50,7 @@ export function SettingsTab() {
           <Building2 className="h-5 w-5 text-primary" />
           Zamawiający
         </div>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
             <Label htmlFor="companyName">Nazwa firmy</Label>
             <Input
@@ -78,7 +84,7 @@ export function SettingsTab() {
           <User className="h-5 w-5 text-primary" />
           Wykonawca
         </div>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
             <Label htmlFor="fullName">Imię i Nazwisko</Label>
             <Input
@@ -94,6 +100,28 @@ export function SettingsTab() {
               value={contractor.address}
               onChange={(e) => setContractor({ ...contractor, address: e.target.value })}
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Contract Settings */}
+      <div className="bg-card rounded-xl border p-6 space-y-4">
+        <div className="flex items-center gap-2 text-foreground font-semibold text-lg">
+          <Hash className="h-5 w-5 text-primary" />
+          Numeracja umów
+        </div>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="prefix">Prefiks numeru umowy</Label>
+            <Input
+              id="prefix"
+              value={settings.prefix}
+              onChange={(e) => setSettings({ ...settings, prefix: e.target.value })}
+              placeholder="W-"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Numer umowy: {settings.prefix}01/MM/RR
+            </p>
           </div>
         </div>
       </div>
