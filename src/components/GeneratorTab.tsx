@@ -24,6 +24,15 @@ function getLastDay(month: number, year: number) {
   return new Date(year, month, 0).getDate();
 }
 
+function formatDateForInput(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function formatDatePolish(isoDate: string) {
+  const [y, m, d] = isoDate.split("-");
+  return `${d}.${m}.${y}`;
+}
+
 export function GeneratorTab() {
   const now = new Date();
   const [amountNet, setAmountNet] = useState(8000);
@@ -31,6 +40,11 @@ export function GeneratorTab() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [subject, setSubject] = useState("");
   const [counter, setCounter] = useState(() => getCurrentCounter(now.getMonth() + 1, now.getFullYear()));
+  const [startDate, setStartDate] = useState(() => formatDateForInput(now));
+  const [endDate, setEndDate] = useState(() => {
+    const last = getLastDay(now.getMonth() + 1, now.getFullYear());
+    return formatDateForInput(new Date(now.getFullYear(), now.getMonth(), last));
+  });
   const previewRef = useRef<HTMLDivElement>(null);
 
   const client = loadClient();
@@ -38,9 +52,8 @@ export function GeneratorTab() {
   const settings = loadSettings();
 
   const contractNumber = `${settings.prefix}${pad(counter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`;
-  const startDate = `02.${pad(selectedMonth)}.${selectedYear}`;
-  const lastDay = getLastDay(selectedMonth, selectedYear);
-  const endDate = `${pad(lastDay)}.${pad(selectedMonth)}.${selectedYear}`;
+  const startDateFormatted = formatDatePolish(startDate);
+  const endDateFormatted = formatDatePolish(endDate);
   const amountWords = useMemo(() => numberToPolishWords(amountNet), [amountNet]);
 
   const currentYear = now.getFullYear();
@@ -51,12 +64,16 @@ export function GeneratorTab() {
     const m = Number(v);
     setSelectedMonth(m);
     setCounter(getCurrentCounter(m, selectedYear));
+    const last = getLastDay(m, selectedYear);
+    setEndDate(formatDateForInput(new Date(selectedYear, m - 1, last)));
   };
 
   const handleYearChange = (v: string) => {
     const y = Number(v);
     setSelectedYear(y);
     setCounter(getCurrentCounter(selectedMonth, y));
+    const last = getLastDay(selectedMonth, y);
+    setEndDate(formatDateForInput(new Date(y, selectedMonth - 1, last)));
   };
 
   const handleConfirmContract = () => {
@@ -77,6 +94,7 @@ export function GeneratorTab() {
       image: { type: "jpeg" as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     };
     html2pdf().set(opt).from(previewRef.current).save();
   };
@@ -153,6 +171,32 @@ export function GeneratorTab() {
               </Select>
             </div>
           </div>
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <Label htmlFor="startDate" className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-primary" />
+                Data zawarcia / rozpoczęcia
+              </Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="endDate" className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-primary" />
+                Termin wykonania
+              </Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </div>
 
           <div>
             <Label htmlFor="subject" className="flex items-center gap-1.5">
@@ -185,11 +229,11 @@ export function GeneratorTab() {
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Data zawarcia:</span>
-            <span className="font-medium text-foreground">{startDate}</span>
+            <span className="font-medium text-foreground">{startDateFormatted}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Termin wykonania:</span>
-            <span className="font-medium text-foreground">{endDate}</span>
+            <span className="font-medium text-foreground">{endDateFormatted}</span>
           </div>
         </div>
 
@@ -211,8 +255,8 @@ export function GeneratorTab() {
           <ContractPreview
             ref={previewRef}
             contractNumber={contractNumber}
-            startDate={startDate}
-            endDate={endDate}
+            startDate={startDateFormatted}
+            endDate={endDateFormatted}
             client={client}
             contractor={contractor}
             subject={subject || "—"}
