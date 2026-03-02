@@ -108,7 +108,7 @@ export const ContractPreview = forwardRef<HTMLDivElement, ContractPreviewProps>(
           <p>
             Wyrażam zgodę na przetwarzanie moich danych osobowych dla potrzeb niezbędnych do realizacji procesu zatrudnienia zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679 z dnia 27 kwietnia 2016 r. (RODO).
           </p>
-          <p style={{ marginTop: "30pt" }}>............................................</p>
+          <p style={{ marginTop: "16pt" }}>............................................</p>
           <p>Podpis Wykonawcy</p>
         </div>
       </div>
