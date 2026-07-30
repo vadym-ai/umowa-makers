@@ -71,14 +71,17 @@ export function SettingsTab() {
   };
 
   const removeCompany = async (id: string) => {
-    await supabase.from("companies").delete().eq("id", id);
+    const { error } = await supabase.from("companies").delete().eq("id", id);
+    if (error) return toast({ title: "Błąd usuwania", description: error.message, variant: "destructive" });
     if (orgId) reload(orgId);
   };
 
   const removeContractor = async (id: string) => {
-    await supabase.from("contractors").delete().eq("id", id);
+    const { error } = await supabase.from("contractors").delete().eq("id", id);
+    if (error) return toast({ title: "Błąd usuwania", description: error.message, variant: "destructive" });
     if (orgId) reload(orgId);
   };
+
 
   const savePrefix = async () => {
     if (!orgId) return;
