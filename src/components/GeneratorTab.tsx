@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContractPreview } from "@/components/ContractPreview";
-import { getCurrentCounter, incrementCounter } from "@/lib/contractDefaults";
+import { getCurrentCounter, incrementCounter, formatContractNumber, ResetPeriod } from "@/lib/contractDefaults";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { Company, Contractor } from "@/lib/parties";
@@ -56,6 +56,8 @@ export function GeneratorTab() {
   const [companyId, setCompanyId] = useState<string>("");
   const [contractorId, setContractorId] = useState<string>("");
   const [prefix, setPrefix] = useState("W-");
+  const [numberFormat, setNumberFormat] = useState("{prefix}{NN}/{MM}/{YY}");
+  const [resetPeriod, setResetPeriod] = useState<ResetPeriod>("monthly");
 
   useEffect(() => {
     if (!orgId) return;
@@ -64,7 +66,7 @@ export function GeneratorTab() {
       const [c1, c2, n] = await Promise.all([
         supabase.from("companies").select("*").eq("org_id", orgId).order("created_at"),
         supabase.from("contractors").select("*").eq("org_id", orgId).order("created_at"),
-        supabase.from("numbering_rules").select("prefix").eq("org_id", orgId).maybeSingle(),
+        supabase.from("numbering_rules").select("prefix, format, reset_period").eq("org_id", orgId).maybeSingle(),
       ]);
       if (!active) return;
       const comps = (c1.data as Company[]) ?? [];
@@ -74,6 +76,12 @@ export function GeneratorTab() {
       setCompanyId((prev) => prev || comps[0]?.id || "");
       setContractorId((prev) => prev || cons[0]?.id || "");
       if (n.data?.prefix) setPrefix(n.data.prefix);
+      if (n.data?.format) setNumberFormat(n.data.format);
+      if (n.data?.reset_period) {
+        const rp = n.data.reset_period as ResetPeriod;
+        setResetPeriod(rp);
+        setCounter(getCurrentCounter(selectedMonth, selectedYear, rp));
+      }
     })();
     return () => {
       active = false;
@@ -83,7 +91,12 @@ export function GeneratorTab() {
   const company = companies.find((c) => c.id === companyId) ?? null;
   const contractor = contractors.find((c) => c.id === contractorId) ?? null;
 
-  const contractNumber = `${prefix}${pad(counter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`;
+  const contractNumber = formatContractNumber(numberFormat, {
+    prefix,
+    counter,
+    month: selectedMonth,
+    year: selectedYear,
+  });
   const startDateFormatted = formatDatePolish(startDate);
   const endDateFormatted = formatDatePolish(endDate);
   const amountWords = useMemo(() => numberToPolishWords(amountNet), [amountNet]);
@@ -94,7 +107,7 @@ export function GeneratorTab() {
   const handleMonthChange = (v: string) => {
     const m = Number(v);
     setSelectedMonth(m);
-    setCounter(getCurrentCounter(m, selectedYear));
+    setCounter(getCurrentCounter(m, selectedYear, resetPeriod));
     const last = getLastDay(m, selectedYear);
     setEndDate(formatDateForInput(new Date(selectedYear, m - 1, last)));
   };
@@ -102,17 +115,27 @@ export function GeneratorTab() {
   const handleYearChange = (v: string) => {
     const y = Number(v);
     setSelectedYear(y);
-    setCounter(getCurrentCounter(selectedMonth, y));
+    setCounter(getCurrentCounter(selectedMonth, y, resetPeriod));
     const last = getLastDay(selectedMonth, y);
     setEndDate(formatDateForInput(new Date(y, selectedMonth - 1, last)));
   };
 
-  const handleConfirmContract = () => {
-    const nextCounter = incrementCounter(selectedMonth, selectedYear);
+  const bumpCounter = () => {
+    const nextCounter = incrementCounter(selectedMonth, selectedYear, resetPeriod);
     setCounter(nextCounter);
+    return formatContractNumber(numberFormat, {
+      prefix,
+      counter: nextCounter,
+      month: selectedMonth,
+      year: selectedYear,
+    });
+  };
+
+  const handleConfirmContract = () => {
+    const nextNumber = bumpCounter();
     toast({
       title: "Umowa zatwierdzona",
-      description: `Następna umowa w ${pad(selectedMonth)}/${selectedYear} będzie miała numer ${prefix}${pad(nextCounter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`,
+      description: `Następna umowa będzie miała numer ${nextNumber}`,
     });
   };
 
@@ -121,13 +144,18 @@ export function GeneratorTab() {
     const html2pdf = (await import("html2pdf.js")).default;
     const opt = {
       margin: 0,
-      filename: `UOD-${pad(selectedMonth)}-${selectedYear}.pdf`,
+      filename: `UOD-${contractNumber.replace(/[/\\]/g, "-")}.pdf`,
       image: { type: "jpeg" as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     };
-    html2pdf().set(opt).from(previewRef.current).save();
+    await html2pdf().set(opt).from(previewRef.current).save();
+    const nextNumber = bumpCounter();
+    toast({
+      title: "PDF pobrany",
+      description: `Licznik zaktualizowany — następny numer: ${nextNumber}`,
+    });
   };
 
   return (

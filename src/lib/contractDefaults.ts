@@ -78,21 +78,39 @@ export function saveCounters(data: ContractCounters) {
   localStorage.setItem("uod_counters", JSON.stringify(data));
 }
 
-export function getCounterKey(month: number, year: number): string {
+export type ResetPeriod = "monthly" | "yearly" | "never";
+
+export function getCounterKey(month: number, year: number, period: ResetPeriod = "monthly"): string {
+  if (period === "never") return "all";
+  if (period === "yearly") return `${year}`;
   return `${month.toString().padStart(2, "0")}/${year.toString().slice(-2)}`;
 }
 
-export function getCurrentCounter(month: number, year: number): number {
+export function getCurrentCounter(month: number, year: number, period: ResetPeriod = "monthly"): number {
   const counters = loadCounters();
-  const key = getCounterKey(month, year);
-  return (counters[key] || 0) + 1;
+  return (counters[getCounterKey(month, year, period)] || 0) + 1;
 }
 
-export function incrementCounter(month: number, year: number): number {
+export function incrementCounter(month: number, year: number, period: ResetPeriod = "monthly"): number {
   const counters = loadCounters();
-  const key = getCounterKey(month, year);
+  const key = getCounterKey(month, year, period);
   const newCount = (counters[key] || 0) + 1;
   counters[key] = newCount;
   saveCounters(counters);
   return newCount + 1; // return NEXT number
+}
+
+export function formatContractNumber(
+  format: string,
+  opts: { prefix: string; counter: number; month: number; year: number }
+): string {
+  const nn = opts.counter.toString().padStart(2, "0");
+  return format
+    .replace(/\{prefix\}/gi, opts.prefix)
+    .replace(/\{NNN\}/g, opts.counter.toString().padStart(3, "0"))
+    .replace(/\{NN\}/g, nn)
+    .replace(/\{N\}/g, opts.counter.toString())
+    .replace(/\{MM\}/g, opts.month.toString().padStart(2, "0"))
+    .replace(/\{YYYY\}/g, opts.year.toString())
+    .replace(/\{YY\}/g, opts.year.toString().slice(-2));
 }
