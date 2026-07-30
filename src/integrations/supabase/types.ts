@@ -14,6 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          name: string
+          nip: string | null
+          org_id: string
+          representative: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          nip?: string | null
+          org_id: string
+          representative?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          nip?: string | null
+          org_id?: string
+          representative?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contractors: {
+        Row: {
+          address: string | null
+          created_at: string
+          full_name: string
+          id: string
+          org_id: string
+          pesel: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          org_id: string
+          pesel?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          org_id?: string
+          pesel?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractors_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      numbering_rules: {
+        Row: {
+          created_at: string
+          format: string
+          id: string
+          org_id: string
+          prefix: string
+          reset_period: string
+        }
+        Insert: {
+          created_at?: string
+          format?: string
+          id?: string
+          org_id: string
+          prefix?: string
+          reset_period?: string
+        }
+        Update: {
+          created_at?: string
+          format?: string
+          id?: string
+          org_id?: string
+          prefix?: string
+          reset_period?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "numbering_rules_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
