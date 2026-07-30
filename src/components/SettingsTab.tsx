@@ -31,10 +31,16 @@ export function SettingsTab() {
       supabase.from("contractors").select("*").eq("org_id", id).order("created_at"),
       supabase.from("numbering_rules").select("*").eq("org_id", id).maybeSingle(),
     ]);
+    const err = c1.error || c2.error || n.error;
+    if (err) {
+      toast({ title: "Błąd wczytywania danych", description: err.message, variant: "destructive" });
+      return;
+    }
     setCompanies((c1.data as Company[]) ?? []);
     setContractors((c2.data as Contractor[]) ?? []);
     if (n.data?.prefix) setPrefix(n.data.prefix);
   };
+
 
   useEffect(() => {
     if (orgId) reload(orgId);
