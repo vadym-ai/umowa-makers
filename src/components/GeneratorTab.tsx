@@ -69,12 +69,15 @@ export function GeneratorTab() {
         supabase.from("numbering_rules").select("prefix, format, reset_period").eq("org_id", orgId).maybeSingle(),
       ]);
       if (!active) return;
+      const err = c1.error || c2.error || n.error;
+      if (err) {
+        toast({ title: "Błąd wczytywania danych", description: err.message, variant: "destructive" });
+        return;
+      }
       const comps = (c1.data as Company[]) ?? [];
       const cons = (c2.data as Contractor[]) ?? [];
       setCompanies(comps);
       setContractors(cons);
-      setCompanyId((prev) => prev || comps[0]?.id || "");
-      setContractorId((prev) => prev || cons[0]?.id || "");
       if (n.data?.prefix) setPrefix(n.data.prefix);
       if (n.data?.format) setNumberFormat(n.data.format);
       if (n.data?.reset_period) {
@@ -87,6 +90,16 @@ export function GeneratorTab() {
       active = false;
     };
   }, [orgId]);
+
+  // Preselect the first entry once lists load, if nothing is selected yet
+  useEffect(() => {
+    if (!companyId && companies.length > 0) setCompanyId(companies[0].id);
+  }, [companies, companyId]);
+
+  useEffect(() => {
+    if (!contractorId && contractors.length > 0) setContractorId(contractors[0].id);
+  }, [contractors, contractorId]);
+
 
   const company = companies.find((c) => c.id === companyId) ?? null;
   const contractor = contractors.find((c) => c.id === contractorId) ?? null;
