@@ -69,12 +69,15 @@ export function GeneratorTab() {
         supabase.from("numbering_rules").select("prefix, format, reset_period").eq("org_id", orgId).maybeSingle(),
       ]);
       if (!active) return;
+      const err = c1.error || c2.error || n.error;
+      if (err) {
+        toast({ title: "Błąd wczytywania danych", description: err.message, variant: "destructive" });
+        return;
+      }
       const comps = (c1.data as Company[]) ?? [];
       const cons = (c2.data as Contractor[]) ?? [];
       setCompanies(comps);
       setContractors(cons);
-      setCompanyId((prev) => prev || comps[0]?.id || "");
-      setContractorId((prev) => prev || cons[0]?.id || "");
       if (n.data?.prefix) setPrefix(n.data.prefix);
       if (n.data?.format) setNumberFormat(n.data.format);
       if (n.data?.reset_period) {
@@ -87,6 +90,16 @@ export function GeneratorTab() {
       active = false;
     };
   }, [orgId]);
+
+  // Preselect the first entry once lists load, if nothing is selected yet
+  useEffect(() => {
+    if (!companyId && companies.length > 0) setCompanyId(companies[0].id);
+  }, [companies, companyId]);
+
+  useEffect(() => {
+    if (!contractorId && contractors.length > 0) setContractorId(contractors[0].id);
+  }, [contractors, contractorId]);
+
 
   const company = companies.find((c) => c.id === companyId) ?? null;
   const contractor = contractors.find((c) => c.id === contractorId) ?? null;
@@ -151,17 +164,12 @@ export function GeneratorTab() {
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     };
     await html2pdf().set(opt).from(previewRef.current).save();
-    const nextNumber = bumpCounter();
-    toast({
-      title: "PDF pobrany",
-      description: `Licznik zaktualizowany — następny numer: ${nextNumber}`,
-    });
   };
 
   return (
-    <div className="flex gap-6 h-full">
+    <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Control Panel */}
-      <div className="w-80 shrink-0 space-y-6">
+      <div className="w-full lg:w-80 lg:shrink-0 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Generator Umowy</h1>
           <p className="text-muted-foreground mt-1 text-sm">
@@ -169,38 +177,42 @@ export function GeneratorTab() {
           </p>
         </div>
 
-        <div className="bg-card rounded-xl border p-5 space-y-4">
-          <div>
+        <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-4">
+          <div className="min-w-0">
             <Label className="flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5 text-primary" />
+              <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
               Zamawiający
             </Label>
             <Select value={companyId} onValueChange={setCompanyId}>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz firmę" />
               </SelectTrigger>
-              <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
+              {companies.length > 0 && (
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              )}
             </Select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <Label className="flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-primary" />
+              <User className="h-3.5 w-3.5 text-primary shrink-0" />
               Wykonawca
             </Label>
             <Select value={contractorId} onValueChange={setContractorId}>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz wykonawcę" />
               </SelectTrigger>
-              <SelectContent>
-                {contractors.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
-                ))}
-              </SelectContent>
+              {contractors.length > 0 && (
+                <SelectContent>
+                  {contractors.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              )}
             </Select>
           </div>
 
@@ -211,7 +223,8 @@ export function GeneratorTab() {
           )}
         </div>
 
-        <div className="bg-card rounded-xl border p-5 space-y-4">
+
+        <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-4">
           <div>
             <Label htmlFor="amount" className="flex items-center gap-1.5">
               <DollarSign className="h-3.5 w-3.5 text-primary" />
@@ -254,7 +267,10 @@ export function GeneratorTab() {
               </Select>
             </div>
             <div className="w-24">
-              <Label>Rok</Label>
+              <Label className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
+                Rok
+              </Label>
               <Select
                 value={selectedYear.toString()}
                 onValueChange={handleYearChange}
@@ -325,27 +341,27 @@ export function GeneratorTab() {
           </div>
         </div>
 
-        <div className="bg-card rounded-xl border p-5 space-y-2 text-sm">
-          <div className="flex justify-between">
+        <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-2 text-sm">
+          <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Nr umowy:</span>
             <span className="font-medium text-foreground">{contractNumber}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Data zawarcia:</span>
             <span className="font-medium text-foreground">{startDateFormatted}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Termin wykonania:</span>
             <span className="font-medium text-foreground">{endDateFormatted}</span>
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <Button onClick={handleDownloadPdf} className="flex-1" size="lg">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button onClick={handleDownloadPdf} className="w-full sm:flex-1" size="lg">
             <FileDown className="mr-2 h-5 w-5" />
             Pobierz PDF
           </Button>
-          <Button onClick={handleConfirmContract} variant="outline" size="lg">
+          <Button onClick={handleConfirmContract} variant="outline" size="lg" className="w-full sm:w-auto">
             <CheckCircle className="mr-2 h-5 w-5" />
             Zatwierdź
           </Button>
@@ -353,8 +369,8 @@ export function GeneratorTab() {
       </div>
 
       {/* A4 Preview */}
-      <div className="flex-1 overflow-auto bg-muted/50 rounded-xl p-6 flex justify-center">
-        <div className="shadow-2xl">
+      <div className="flex-1 min-w-0 overflow-auto bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
+        <div className="shadow-2xl shrink-0">
           <ContractPreview
             ref={previewRef}
             contractNumber={contractNumber}
