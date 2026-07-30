@@ -1,12 +1,15 @@
-import { useState, useRef, useMemo } from "react";
-import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle } from "lucide-react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle, Building2, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContractPreview } from "@/components/ContractPreview";
-import { loadClient, loadContractor, loadSettings, getCurrentCounter, incrementCounter } from "@/lib/contractDefaults";
+import { getCurrentCounter, incrementCounter } from "@/lib/contractDefaults";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrg } from "@/hooks/useOrg";
+import { Company, Contractor } from "@/lib/parties";
 import { numberToPolishWords } from "@/lib/numberToWords";
 import { getRandomDescription } from "@/lib/contractDescriptions";
 import { toast } from "@/hooks/use-toast";
@@ -35,6 +38,7 @@ function formatDatePolish(isoDate: string) {
 
 export function GeneratorTab() {
   const now = new Date();
+  const { orgId } = useOrg();
   const [amountNet, setAmountNet] = useState(8000);
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -47,11 +51,39 @@ export function GeneratorTab() {
   });
   const previewRef = useRef<HTMLDivElement>(null);
 
-  const client = loadClient();
-  const contractor = loadContractor();
-  const settings = loadSettings();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [companyId, setCompanyId] = useState<string>("");
+  const [contractorId, setContractorId] = useState<string>("");
+  const [prefix, setPrefix] = useState("W-");
 
-  const contractNumber = `${settings.prefix}${pad(counter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`;
+  useEffect(() => {
+    if (!orgId) return;
+    let active = true;
+    (async () => {
+      const [c1, c2, n] = await Promise.all([
+        supabase.from("companies").select("*").eq("org_id", orgId).order("created_at"),
+        supabase.from("contractors").select("*").eq("org_id", orgId).order("created_at"),
+        supabase.from("numbering_rules").select("prefix").eq("org_id", orgId).maybeSingle(),
+      ]);
+      if (!active) return;
+      const comps = (c1.data as Company[]) ?? [];
+      const cons = (c2.data as Contractor[]) ?? [];
+      setCompanies(comps);
+      setContractors(cons);
+      setCompanyId((prev) => prev || comps[0]?.id || "");
+      setContractorId((prev) => prev || cons[0]?.id || "");
+      if (n.data?.prefix) setPrefix(n.data.prefix);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [orgId]);
+
+  const company = companies.find((c) => c.id === companyId) ?? null;
+  const contractor = contractors.find((c) => c.id === contractorId) ?? null;
+
+  const contractNumber = `${prefix}${pad(counter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`;
   const startDateFormatted = formatDatePolish(startDate);
   const endDateFormatted = formatDatePolish(endDate);
   const amountWords = useMemo(() => numberToPolishWords(amountNet), [amountNet]);
@@ -59,7 +91,6 @@ export function GeneratorTab() {
   const currentYear = now.getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
 
-  // Update counter when month/year changes
   const handleMonthChange = (v: string) => {
     const m = Number(v);
     setSelectedMonth(m);
@@ -81,7 +112,7 @@ export function GeneratorTab() {
     setCounter(nextCounter);
     toast({
       title: "Umowa zatwierdzona",
-      description: `Następna umowa w ${pad(selectedMonth)}/${selectedYear} będzie miała numer ${settings.prefix}${pad(nextCounter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`,
+      description: `Następna umowa w ${pad(selectedMonth)}/${selectedYear} będzie miała numer ${prefix}${pad(nextCounter)}/${pad(selectedMonth)}/${selectedYear.toString().slice(-2)}`,
     });
   };
 
@@ -108,6 +139,48 @@ export function GeneratorTab() {
           <p className="text-muted-foreground mt-1 text-sm">
             Wypełnij dane i pobierz gotowy PDF.
           </p>
+        </div>
+
+        <div className="bg-card rounded-xl border p-5 space-y-4">
+          <div>
+            <Label className="flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5 text-primary" />
+              Zamawiający
+            </Label>
+            <Select value={companyId} onValueChange={setCompanyId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz firmę" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5 text-primary" />
+              Wykonawca
+            </Label>
+            <Select value={contractorId} onValueChange={setContractorId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz wykonawcę" />
+              </SelectTrigger>
+              <SelectContent>
+                {contractors.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(companies.length === 0 || contractors.length === 0) && (
+            <p className="text-xs text-muted-foreground">
+              Uzupełnij listy w zakładce „Dane Stron”.
+            </p>
+          )}
         </div>
 
         <div className="bg-card rounded-xl border p-5 space-y-4">
@@ -259,7 +332,7 @@ export function GeneratorTab() {
             contractNumber={contractNumber}
             startDate={startDateFormatted}
             endDate={endDateFormatted}
-            client={client}
+            company={company}
             contractor={contractor}
             subject={subject || "—"}
             amountNet={amountNet}
