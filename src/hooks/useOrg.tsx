@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { migrateLocalStorageData } from "@/lib/localMigration";
+import { toast } from "@/hooks/use-toast";
 
 export function useOrg() {
   const { user } = useAuth();
@@ -25,8 +26,17 @@ export function useOrg() {
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle()
-      .then(async ({ data }) => {
+      .then(async ({ data, error }) => {
         if (!active) return;
+        if (error) {
+          toast({
+            title: "Błąd wczytywania organizacji",
+            description: error.message,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
         setOrgId(data?.org_id ?? null);
         setRole(data?.role ?? null);
         if (data?.org_id) {
@@ -41,3 +51,4 @@ export function useOrg() {
 
   return { orgId, role, isAdmin: role === "admin", loading };
 }
+
