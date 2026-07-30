@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { FileText, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { FileText, Settings, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { GeneratorTab } from "@/components/GeneratorTab";
 import { SettingsTab } from "@/components/SettingsTab";
 
@@ -12,6 +15,13 @@ type TabId = (typeof tabs)[number]["id"];
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<TabId>("generator");
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -38,8 +48,16 @@ const Index = () => {
               </button>
             ))}
           </nav>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Wyloguj
+            </Button>
+          </div>
         </div>
       </header>
+
 
       {/* Content */}
       <main className="flex-1 max-w-[1400px] mx-auto w-full px-6 py-6">
