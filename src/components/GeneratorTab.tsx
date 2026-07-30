@@ -164,17 +164,12 @@ export function GeneratorTab() {
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     };
     await html2pdf().set(opt).from(previewRef.current).save();
-    const nextNumber = bumpCounter();
-    toast({
-      title: "PDF pobrany",
-      description: `Licznik zaktualizowany — następny numer: ${nextNumber}`,
-    });
   };
 
   return (
-    <div className="flex gap-6 h-full">
+    <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Control Panel */}
-      <div className="w-80 shrink-0 space-y-6">
+      <div className="w-full lg:w-80 lg:shrink-0 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Generator Umowy</h1>
           <p className="text-muted-foreground mt-1 text-sm">
@@ -182,38 +177,42 @@ export function GeneratorTab() {
           </p>
         </div>
 
-        <div className="bg-card rounded-xl border p-5 space-y-4">
-          <div>
+        <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-4">
+          <div className="min-w-0">
             <Label className="flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5 text-primary" />
+              <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
               Zamawiający
             </Label>
             <Select value={companyId} onValueChange={setCompanyId}>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz firmę" />
               </SelectTrigger>
-              <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
+              {companies.length > 0 && (
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              )}
             </Select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <Label className="flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-primary" />
+              <User className="h-3.5 w-3.5 text-primary shrink-0" />
               Wykonawca
             </Label>
             <Select value={contractorId} onValueChange={setContractorId}>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz wykonawcę" />
               </SelectTrigger>
-              <SelectContent>
-                {contractors.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
-                ))}
-              </SelectContent>
+              {contractors.length > 0 && (
+                <SelectContent>
+                  {contractors.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              )}
             </Select>
           </div>
 
@@ -223,6 +222,7 @@ export function GeneratorTab() {
             </p>
           )}
         </div>
+
 
         <div className="bg-card rounded-xl border p-5 space-y-4">
           <div>
