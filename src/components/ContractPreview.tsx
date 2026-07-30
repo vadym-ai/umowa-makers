@@ -1,19 +1,19 @@
 import { forwardRef } from "react";
-import { ClientData, ContractorData } from "@/lib/contractDefaults";
+import { Company, Contractor } from "@/lib/parties";
 
 interface ContractPreviewProps {
   contractNumber: string;
   startDate: string;
   endDate: string;
-  client: ClientData;
-  contractor: ContractorData;
+  company: Company | null;
+  contractor: Contractor | null;
   subject: string;
   amountNet: number;
   amountWords: string;
 }
 
 export const ContractPreview = forwardRef<HTMLDivElement, ContractPreviewProps>(
-  ({ contractNumber, startDate, endDate, client, contractor, subject, amountNet, amountWords }, ref) => {
+  ({ contractNumber, startDate, endDate, company, contractor, subject, amountNet, amountWords }, ref) => {
     return (
       <div ref={ref} className="a4-page">
         <h2>UMOWA O DZIEŁO {contractNumber}</h2>
@@ -23,13 +23,14 @@ export const ContractPreview = forwardRef<HTMLDivElement, ContractPreviewProps>(
           Umowa zawarta w dniu {startDate} r., w Warszawie, pomiędzy:
         </p>
         <p>
-          <strong>{client.companyName}</strong>, {client.companyAddress}
+          <strong>{company?.name || "—"}</strong>, {company?.address || "—"}
+        </p>
+        {company?.nip && <p>NIP: {company.nip}</p>}
+        <p>
+          Reprezentowanym przez p. {company?.representative || "—"} zwanym dalej <strong>Zamawiającym</strong>, a
         </p>
         <p>
-          Reprezentowanym przez p. {client.representative} zwanym dalej <strong>Zamawiającym</strong>, a
-        </p>
-        <p>
-          p. <strong>{contractor.fullName}</strong>, {contractor.address}
+          p. <strong>{contractor?.full_name || "—"}</strong>, {contractor?.address || "—"}
         </p>
         <p>
           zwanym dalej <strong>Wykonawcą</strong>, o następującej treści:
