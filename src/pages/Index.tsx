@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { FileText, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { FileText, Settings, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { GeneratorTab } from "@/components/GeneratorTab";
 import { SettingsTab } from "@/components/SettingsTab";
 
