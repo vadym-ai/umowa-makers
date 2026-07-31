@@ -85,6 +85,24 @@ export function SettingsTab() {
     if (orgId) reload(orgId);
   };
 
+  const setDefaultParty = async (table: "companies" | "contractors", id: string, value: boolean) => {
+    if (!orgId) return;
+    if (value) {
+      // only one default per organization
+      const { error: clearErr } = await supabase
+        .from(table)
+        .update({ is_default: false })
+        .eq("org_id", orgId)
+        .eq("is_default", true);
+      if (clearErr) {
+        return toast({ title: "Błąd zapisu", description: clearErr.message, variant: "destructive" });
+      }
+    }
+    const { error } = await supabase.from(table).update({ is_default: value }).eq("id", id);
+    if (error) return toast({ title: "Błąd zapisu", description: error.message, variant: "destructive" });
+    reload(orgId);
+  };
+
 
   const savePrefix = async () => {
     if (!orgId) return;
