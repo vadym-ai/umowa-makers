@@ -218,7 +218,18 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
             </SelectContent>
           </Select>
         )}
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Aktywne</SelectItem>
+            <SelectItem value="archived">Archiwalne</SelectItem>
+            <SelectItem value="all">Wszystkie</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
 
       <div className="bg-card rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
