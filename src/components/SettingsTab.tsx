@@ -308,6 +308,9 @@ export function SettingsTab() {
           </Button>
         )}
       </section>
+
+      <TelegramCard />
     </div>
+
   );
 }
