@@ -333,6 +333,28 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
           </tbody>
         </table>
       </div>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Usunąć umowę {toDelete?.number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ta operacja jest nieodwracalna. Usunięcie umowy NIE cofa licznika numeracji —
+              kolejna umowa otrzyma następny numer, a numer usuniętej umowy pozostanie niewykorzystany.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => toDelete && deleteContract(toDelete)}
+            >
+              Usuń umowę
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
