@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContractPreview } from "@/components/ContractPreview";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { Company, Contractor } from "@/lib/parties";
@@ -201,7 +202,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
       number: num as string,
       period_month: selectedMonth,
       period_year: selectedYear,
-      data: buildSnapshot() as unknown as Record<string, unknown>,
+      data: buildSnapshot() as unknown as Json,
       created_by: user?.id ?? null,
     });
     setSaving(false);
@@ -224,7 +225,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
         contractor_id: contractorId || null,
         period_month: selectedMonth,
         period_year: selectedYear,
-        data: buildSnapshot() as unknown as Record<string, unknown>,
+        data: buildSnapshot() as unknown as Json,
       })
       .eq("id", editingContract.id);
     setSaving(false);
