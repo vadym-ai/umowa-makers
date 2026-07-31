@@ -224,7 +224,15 @@ export function SettingsTab() {
                 <p className="text-xs text-muted-foreground truncate">{c.address}</p>
                 {c.pesel && <p className="text-xs text-muted-foreground truncate">PESEL: {c.pesel}</p>}
               </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+                <Switch
+                  checked={!!c.is_default}
+                  onCheckedChange={(v) => setDefaultParty("contractors", c.id, v)}
+                />
+                Domyślny
+              </label>
               <Button
+
                 variant="ghost"
                 size="icon"
                 onClick={() => {
