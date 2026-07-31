@@ -34,7 +34,8 @@ async function inflate(bytes: Uint8Array): Promise<Uint8Array | null> {
           controller.close();
         },
       });
-      const stream = src.pipeThrough(new DecompressionStream(fmt));
+      // deno-lint-ignore no-explicit-any
+      const stream = (src as any).pipeThrough(new DecompressionStream(fmt));
       return new Uint8Array(await new Response(stream).arrayBuffer());
     } catch {
       // try next format
