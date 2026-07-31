@@ -298,7 +298,33 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                         <FileDown className="mr-2 h-4 w-4" />
                         Pobierz PDF (serwer)
                       </DropdownMenuItem>
+                      {isAdmin && r.status !== "archived" && (
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            archiveContract(r);
+                          }}
+                          disabled={busyId === r.id}
+                        >
+                          <Archive className="mr-2 h-4 w-4" />
+                          Archiwizuj
+                        </DropdownMenuItem>
+                      )}
+                      {isAdmin && (
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setToDelete(r);
+                          }}
+                          disabled={busyId === r.id}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Usuń
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
+
                   </DropdownMenu>
                 </td>
               </tr>
