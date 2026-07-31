@@ -40,6 +40,36 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const [authorFilter, setAuthorFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleServerPdf = async (row: ContractRow) => {
+    setDownloadingId(row.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-contract-pdf", {
+        body: { contract_id: row.id },
+      });
+      if (error) throw error;
+      const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `UOD-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast({
+        title: "Nie udało się pobrać PDF",
+        description: e instanceof Error ? e.message : "Nieznany błąd",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+
 
   useEffect(() => {
     if (!orgId) return;
