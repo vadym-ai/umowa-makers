@@ -3,10 +3,13 @@ import { Building2, User, Hash, Plus, Pencil, Trash2, Save, X, Lock } from "luci
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { Company, Contractor } from "@/lib/parties";
+import { TelegramCard } from "@/components/TelegramCard";
 import { toast } from "@/hooks/use-toast";
+
 
 type CompanyForm = { name: string; address: string; nip: string; representative: string };
 type ContractorForm = { full_name: string; address: string; pesel: string };
@@ -82,6 +85,24 @@ export function SettingsTab() {
     if (orgId) reload(orgId);
   };
 
+  const setDefaultParty = async (table: "companies" | "contractors", id: string, value: boolean) => {
+    if (!orgId) return;
+    if (value) {
+      // only one default per organization
+      const { error: clearErr } = await supabase
+        .from(table)
+        .update({ is_default: false })
+        .eq("org_id", orgId)
+        .eq("is_default", true);
+      if (clearErr) {
+        return toast({ title: "Błąd zapisu", description: clearErr.message, variant: "destructive" });
+      }
+    }
+    const { error } = await supabase.from(table).update({ is_default: value }).eq("id", id);
+    if (error) return toast({ title: "Błąd zapisu", description: error.message, variant: "destructive" });
+    reload(orgId);
+  };
+
 
   const savePrefix = async () => {
     if (!orgId) return;
@@ -124,7 +145,15 @@ export function SettingsTab() {
                   {c.representative}
                 </p>
               </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+                <Switch
+                  checked={!!c.is_default}
+                  onCheckedChange={(v) => setDefaultParty("companies", c.id, v)}
+                />
+                Domyślny
+              </label>
               <Button
+
                 variant="ghost"
                 size="icon"
                 onClick={() => {
@@ -195,7 +224,15 @@ export function SettingsTab() {
                 <p className="text-xs text-muted-foreground truncate">{c.address}</p>
                 {c.pesel && <p className="text-xs text-muted-foreground truncate">PESEL: {c.pesel}</p>}
               </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+                <Switch
+                  checked={!!c.is_default}
+                  onCheckedChange={(v) => setDefaultParty("contractors", c.id, v)}
+                />
+                Domyślny
+              </label>
               <Button
+
                 variant="ghost"
                 size="icon"
                 onClick={() => {
@@ -271,6 +308,9 @@ export function SettingsTab() {
           </Button>
         )}
       </section>
+
+      <TelegramCard />
     </div>
+
   );
 }

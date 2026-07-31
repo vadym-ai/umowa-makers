@@ -19,6 +19,7 @@ export type Database = {
           address: string | null
           created_at: string
           id: string
+          is_default: boolean
           name: string
           nip: string | null
           org_id: string
@@ -28,6 +29,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           id?: string
+          is_default?: boolean
           name: string
           nip?: string | null
           org_id: string
@@ -37,6 +39,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           id?: string
+          is_default?: boolean
           name?: string
           nip?: string | null
           org_id?: string
@@ -90,6 +93,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          is_default: boolean
           org_id: string
           pesel: string | null
         }
@@ -98,6 +102,7 @@ export type Database = {
           created_at?: string
           full_name: string
           id?: string
+          is_default?: boolean
           org_id: string
           pesel?: string | null
         }
@@ -106,6 +111,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          is_default?: boolean
           org_id?: string
           pesel?: string | null
         }
@@ -291,6 +297,61 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      telegram_link_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_link_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_links: {
+        Row: {
+          chat_id: number
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
