@@ -9,11 +9,26 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+/** Formats a date as DD.MM.YYYY (Polish convention). Passes through unknown formats. */
+function plDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  if (!s) return null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}.${iso[2]}.${iso[1]}`;
+  const dotted = s.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$/);
+  if (dotted) return `${dotted[1].padStart(2, "0")}.${dotted[2].padStart(2, "0")}.${dotted[3]}`;
+  return s;
+}
+
 export async function renderContractPdf(contract: { number: string; data: Record<string, any> }): Promise<Uint8Array> {
   const d = (contract.data ?? {}) as Record<string, any>;
   const company = d.company ?? null;
   const contractor = d.contractor ?? null;
   const dash = "—";
+  const startDate = plDate(d.startDate) ?? dash;
+  const endDate = plDate(d.endDate) ?? dash;
+
 
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
@@ -92,7 +107,7 @@ export async function renderContractPdf(contract: { number: string; data: Record
   drawSegs([{ text: `UMOWA O DZIEŁO ${contract.number}`, b: true }], { size: 12, align: "center", leading: 15 });
   drawSegs([{ text: "wraz z przeniesieniem praw autorskich" }], { size: 8.5, align: "center", gapAfter: 10 });
 
-  p(`Umowa zawarta w dniu ${d.startDate ?? dash} r., w Warszawie, pomiędzy:`);
+  p(`Umowa zawarta w dniu ${startDate} r., w Warszawie, pomiędzy:`);
   drawSegs([
     { text: company?.name || dash, b: true },
     { text: `, ${company?.address || dash}` },
@@ -123,7 +138,7 @@ export async function renderContractPdf(contract: { number: string; data: Record
   p("2. Dzieło ma charakter indywidualny i jest przedmiotem prawa autorskiego.");
 
   section("§ 4");
-  p(`Termin rozpoczęcia dzieła strony ustaliły na dzień ${d.startDate ?? dash} r., a wykonania na dzień ${d.endDate ?? dash} r.`);
+  p(`Termin rozpoczęcia dzieła strony ustaliły na dzień ${startDate} r., a wykonania na dzień ${endDate} r.`);
 
   section("§ 5");
   p(`Wykonawcy przysługuje wynagrodzenie za wykonanie dzieła w wysokości ${d.amountNet ?? 0},00 zł netto (słownie: ${d.amountWords ?? ""} złotych) i jest płatne z góry.`);

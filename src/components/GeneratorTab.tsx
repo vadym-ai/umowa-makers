@@ -241,16 +241,26 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return;
     const html2pdf = (await import("html2pdf.js")).default;
+    const el = previewRef.current;
     const opt = {
       margin: 0,
       filename: `UOD-${contractNumber.replace(/[/\\]/g, "-")}.pdf`,
       image: { type: "jpeg" as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      pagebreak: { mode: ["avoid-all", "css"] },
     };
-    await html2pdf().set(opt).from(previewRef.current).save();
+    // The preview uses min-height: 297mm + 30mm padding, which overflows A4 and
+    // produces a trailing blank page. Collapse it to natural height for export.
+    const prevMinHeight = el.style.minHeight;
+    el.style.minHeight = "0";
+    try {
+      await html2pdf().set(opt).from(el).save();
+    } finally {
+      el.style.minHeight = prevMinHeight;
+    }
   };
+
 
   const previewCompany: Company | null =
     company ??
