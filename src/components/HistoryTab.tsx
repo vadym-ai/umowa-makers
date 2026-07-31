@@ -279,12 +279,13 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Akcje umowy">
-                        {downloadingId === r.id ? (
+                        {downloadingId === r.id || busyId === r.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <MoreHorizontal className="h-4 w-4" />
                         )}
                       </Button>
+
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
