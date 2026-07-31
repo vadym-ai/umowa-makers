@@ -7,6 +7,7 @@ import Start from "./pages/Start";
 import GeneratorPage from "./pages/GeneratorPage";
 import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
+import Organization from "./pages/Organization";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/generator/umowa-o-dzielo" element={<GeneratorPage />} />
               <Route path="/historia" element={<HistoryPage />} />
               <Route path="/dane-stron" element={<SettingsPage />} />
+              <Route path="/organizacja" element={<Organization />} />
             </Route>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
