@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { numberToPolishWords } from "./words.ts";
+import { getRandomDescription } from "./descriptions.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -12,10 +13,17 @@ const HELP = [
   "Dostępne komendy:",
   "",
   "/start KOD — połącz konto z aplikacją",
-  "/umowa KWOTA OPIS — wystaw umowę o dzieło dla domyślnego wykonawcy",
-  "/umowa KWOTA OPIS @fragment — wskaż wykonawcę po fragmencie nazwiska",
+  "/umowa KWOTA [opis] [MM/RR] [Nd] [@fragment]",
+  "",
+  "Przykłady:",
+  "/umowa 500 — losowy przedmiot, bieżący miesiąc, start wg kolejki",
+  "/umowa 500 07/26 — umowa za lipiec 2026",
+  "/umowa 800 Projekt logo 07/26 14d — 14 dni od daty startu",
+  "/umowa 800 Projekt logo @Kowal — wskazany wykonawca",
+  "",
   "/pomoc — ta wiadomość",
 ].join("\n");
+
 
 function safeEqual(a: string | null, b: string): boolean {
   if (!a || a.length !== b.length) return false;
