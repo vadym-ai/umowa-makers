@@ -28,9 +28,13 @@ const sampleContract = {
 async function inflate(bytes: Uint8Array): Promise<Uint8Array | null> {
   for (const fmt of ["deflate", "deflate-raw"] as const) {
     try {
-      const stream = new Blob([bytes]).stream().pipeThrough(
-        new DecompressionStream(fmt),
-      );
+      const src = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes.slice());
+          controller.close();
+        },
+      });
+      const stream = src.pipeThrough(new DecompressionStream(fmt));
       return new Uint8Array(await new Response(stream).arrayBuffer());
     } catch {
       // try next format
