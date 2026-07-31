@@ -138,7 +138,7 @@ export async function renderContractPdf(contract: { number: string; data: Record
   p("2. Dzieło ma charakter indywidualny i jest przedmiotem prawa autorskiego.");
 
   section("§ 4");
-  p(`Termin rozpoczęcia dzieła strony ustaliły na dzień ${d.startDate ?? dash} r., a wykonania na dzień ${d.endDate ?? dash} r.`);
+  p(`Termin rozpoczęcia dzieła strony ustaliły na dzień ${startDate} r., a wykonania na dzień ${endDate} r.`);
 
   section("§ 5");
   p(`Wykonawcy przysługuje wynagrodzenie za wykonanie dzieła w wysokości ${d.amountNet ?? 0},00 zł netto (słownie: ${d.amountWords ?? ""} złotych) i jest płatne z góry.`);
