@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { ContractRow } from "@/lib/contracts";
@@ -19,8 +26,10 @@ interface HistoryTabProps {
 }
 
 export function HistoryTab({ onOpenContract }: HistoryTabProps) {
-  const { orgId } = useOrg();
+  const { orgId, isAdmin } = useOrg();
   const [rows, setRows] = useState<ContractRow[]>([]);
+  const [authors, setAuthors] = useState<Record<string, string>>({});
+  const [authorFilter, setAuthorFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -47,15 +56,46 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
     };
   }, [orgId]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];
+    if (ids.length === 0) return;
+    let active = true;
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", ids)
+      .then(({ data }) => {
+        if (!active || !data) return;
+        const map: Record<string, string> = {};
+        data.forEach((p) => {
+          map[p.id] = p.full_name || p.email || "—";
+        });
+        setAuthors(map);
+      });
+    return () => {
+      active = false;
+    };
+  }, [rows, isAdmin]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
+    return rows.filter((r) => {
+      if (isAdmin && authorFilter !== "all" && r.created_by !== authorFilter) return false;
+      if (!q) return true;
+      return (
         r.number.toLowerCase().includes(q) ||
         (r.data?.contractor?.full_name ?? "").toLowerCase().includes(q)
-    );
-  }, [rows, query]);
+      );
+    });
+  }, [rows, query, isAdmin, authorFilter]);
+
+  const authorOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[],
+    [rows]
+  );
+
+  const colCount = isAdmin ? 7 : 6;
 
   return (
     <div className="space-y-6">
@@ -69,14 +109,31 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
         </p>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          className="pl-9"
-          placeholder="Szukaj po numerze lub wykonawcy…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Szukaj po numerze lub wykonawcy…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        {isAdmin && (
+          <Select value={authorFilter} onValueChange={setAuthorFilter}>
+            <SelectTrigger className="w-full sm:w-[220px]">
+              <SelectValue placeholder="Autor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszyscy autorzy</SelectItem>
+              {authorOptions.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {authors[id] ?? "—"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <div className="bg-card rounded-xl border overflow-x-auto">
@@ -87,16 +144,17 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
               <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Data zawarcia</th>
               <th className="text-left font-medium px-4 py-3">Wykonawca</th>
               <th className="text-left font-medium px-4 py-3">Zamawiający</th>
+              {isAdmin && <th className="text-left font-medium px-4 py-3">Autor</th>}
               <th className="text-right font-medium px-4 py-3">Kwota</th>
               <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Utworzono</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={6} className="px-4 py-6 text-muted-foreground">Wczytywanie…</td></tr>
+              <tr><td colSpan={colCount} className="px-4 py-6 text-muted-foreground">Wczytywanie…</td></tr>
             )}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-6 text-muted-foreground">Brak umów.</td></tr>
+              <tr><td colSpan={colCount} className="px-4 py-6 text-muted-foreground">Brak umów.</td></tr>
             )}
             {filtered.map((r) => (
               <tr
@@ -108,6 +166,9 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                 <td className="px-4 py-3 whitespace-nowrap">{r.data?.startDate ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.contractor?.full_name ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.company?.name ?? "—"}</td>
+                {isAdmin && (
+                  <td className="px-4 py-3">{(r.created_by && authors[r.created_by]) || "—"}</td>
+                )}
                 <td className="px-4 py-3 text-right whitespace-nowrap">{formatPln(r.data?.amountNet ?? 0)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{formatDate(r.created_at)}</td>
               </tr>

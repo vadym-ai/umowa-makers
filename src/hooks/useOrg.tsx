@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 export function useOrg() {
   const { user } = useAuth();
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -14,6 +15,7 @@ export function useOrg() {
     let active = true;
     if (!user) {
       setOrgId(null);
+      setOrgName(null);
       setRole(null);
       setLoading(false);
       return;
@@ -21,7 +23,7 @@ export function useOrg() {
     setLoading(true);
     supabase
       .from("organization_members")
-      .select("org_id, role")
+      .select("org_id, role, organizations(name)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true })
       .limit(1)
@@ -39,6 +41,10 @@ export function useOrg() {
         }
         setOrgId(data?.org_id ?? null);
         setRole(data?.role ?? null);
+        setOrgName(
+          (data as unknown as { organizations?: { name?: string } } | null)?.organizations?.name ??
+            null
+        );
         if (data?.org_id) {
           await migrateLocalStorageData(data.org_id);
         }
@@ -49,6 +55,12 @@ export function useOrg() {
     };
   }, [user]);
 
-  return { orgId, role, isAdmin: role === "admin", loading };
+  return {
+    orgId,
+    orgName,
+    role,
+    isOwner: role === "owner",
+    isAdmin: role === "admin" || role === "owner",
+    loading,
+  };
 }
-
