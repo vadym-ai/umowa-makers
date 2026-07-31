@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Settings, LogOut } from "lucide-react";
+import { FileText, Settings, LogOut, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { GeneratorTab } from "@/components/GeneratorTab";
 import { SettingsTab } from "@/components/SettingsTab";
+import { HistoryTab } from "@/components/HistoryTab";
+import { ContractRow } from "@/lib/contracts";
 
 const tabs = [
   { id: "generator", label: "Generator Umowy", icon: FileText },
+  { id: "history", label: "Historia", icon: History },
   { id: "settings", label: "Dane Stron", icon: Settings },
 ] as const;
 
@@ -15,12 +18,23 @@ type TabId = (typeof tabs)[number]["id"];
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<TabId>("generator");
+  const [editingContract, setEditingContract] = useState<ContractRow | null>(null);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
+  };
+
+  const handleOpenContract = (contract: ContractRow) => {
+    setEditingContract(contract);
+    setActiveTab("generator");
+  };
+
+  const handleTabChange = (id: TabId) => {
+    if (id !== "generator") setEditingContract(null);
+    setActiveTab(id);
   };
 
   return (
