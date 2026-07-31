@@ -53,20 +53,17 @@ async function extractDecodedText(pdf: Uint8Array): Promise<string> {
   const raw = latin.decode(pdf);
   let all = raw;
 
-  const marker = "stream";
-  let idx = 0;
-  while ((idx = raw.indexOf(marker, idx)) !== -1) {
-    let start = idx + marker.length;
-    if (raw[start] === "\r") start++;
-    if (raw[start] === "\n") start++;
-    const end = raw.indexOf("endstream", start);
-    idx = end === -1 ? start : end + 1;
+  for (const m of raw.matchAll(/(?:^|>)\s*stream\r?\n/g)) {
+    const start = m.index! + m[0].length;
+    let end = raw.indexOf("endstream", start);
     if (end === -1) continue;
-    const inflated = await inflate(pdf.subarray(start, end));
+    while (end > start && (raw[end - 1] === "\n" || raw[end - 1] === "\r")) end--;
+    const inflated = await inflate(pdf.slice(start, end));
     if (inflated) all += latin.decode(inflated);
   }
   return all;
 }
+
 
 Deno.test("renders a contract PDF with Polish diacritics", async () => {
   const bytes = await renderContractPdf(sampleContract as never);
