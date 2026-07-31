@@ -133,7 +133,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
     [rows]
   );
 
-  const colCount = isAdmin ? 7 : 6;
+  const colCount = isAdmin ? 8 : 7;
 
   return (
     <div className="space-y-6">
