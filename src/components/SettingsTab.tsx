@@ -332,7 +332,63 @@ export function SettingsTab() {
             <Save className="mr-2 h-4 w-4" /> Zapisz numerację
           </Button>
         )}
+
+        {isOwner && (
+          <div className="border-t pt-4 space-y-3">
+            <div>
+              <p className="font-medium text-foreground text-sm">Liczniki numeracji</p>
+              <p className="text-xs text-muted-foreground">
+                Wartość licznika to numer ostatnio nadanej umowy w danym okresie. Kolejna umowa
+                otrzyma numer o jeden większy.
+              </p>
+            </div>
+            {counters.length === 0 && (
+              <p className="text-sm text-muted-foreground">Brak liczników dla tej organizacji.</p>
+            )}
+            {counters.map((c) => (
+              <div key={c.period_key} className="flex items-center gap-2 rounded-lg border p-3">
+                <span className="font-medium text-foreground text-sm w-24 shrink-0">{c.period_key}</span>
+                <Input
+                  type="number"
+                  min={0}
+                  className="w-28"
+                  value={counterDrafts[c.period_key] ?? ""}
+                  onChange={(e) =>
+                    setCounterDrafts({ ...counterDrafts, [c.period_key]: e.target.value })
+                  }
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={savingKey === c.period_key}
+                  onClick={() => {
+                    const v = Number(counterDrafts[c.period_key]);
+                    if (!Number.isInteger(v) || v < 0) {
+                      return toast({
+                        title: "Nieprawidłowa wartość",
+                        description: "Podaj liczbę całkowitą nie mniejszą niż 0.",
+                        variant: "destructive",
+                      });
+                    }
+                    saveCounter(c.period_key, v);
+                  }}
+                >
+                  <Save className="mr-2 h-4 w-4" /> Zapisz
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={savingKey === c.period_key}
+                  onClick={() => saveCounter(c.period_key, 0)}
+                >
+                  Wyzeruj
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
+
 
       <TelegramCard />
     </div>
