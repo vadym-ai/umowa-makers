@@ -107,7 +107,7 @@ export async function renderContractPdf(contract: { number: string; data: Record
   drawSegs([{ text: `UMOWA O DZIEŁO ${contract.number}`, b: true }], { size: 12, align: "center", leading: 15 });
   drawSegs([{ text: "wraz z przeniesieniem praw autorskich" }], { size: 8.5, align: "center", gapAfter: 10 });
 
-  p(`Umowa zawarta w dniu ${d.startDate ?? dash} r., w Warszawie, pomiędzy:`);
+  p(`Umowa zawarta w dniu ${startDate} r., w Warszawie, pomiędzy:`);
   drawSegs([
     { text: company?.name || dash, b: true },
     { text: `, ${company?.address || dash}` },
