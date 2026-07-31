@@ -13,7 +13,7 @@ function generateCode(length = 6) {
   return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
 }
 
-const BOT_USERNAME = "umowa_makers_bot";
+const BOT_USERNAME = "UmowaMaker_Bot";
 
 export function TelegramCard() {
   const { user } = useAuth();
