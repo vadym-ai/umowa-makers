@@ -162,6 +162,8 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
+      if (statusFilter === "active" && r.status === "archived") return false;
+      if (statusFilter === "archived" && r.status !== "archived") return false;
       if (isAdmin && authorFilter !== "all" && r.created_by !== authorFilter) return false;
       if (!q) return true;
       return (
@@ -169,7 +171,8 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
         (r.data?.contractor?.full_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [rows, query, isAdmin, authorFilter]);
+  }, [rows, query, isAdmin, authorFilter, statusFilter]);
+
 
   const authorOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[],
