@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, History } from "lucide-react";
+import { Search, History, MoreHorizontal, FileDown, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -12,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { ContractRow } from "@/lib/contracts";
 import { toast } from "@/hooks/use-toast";
+
 
 function formatPln(v: number) {
   return new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(v || 0);
