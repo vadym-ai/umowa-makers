@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, History, MoreHorizontal, FileDown, Loader2 } from "lucide-react";
+import { Search, History, MoreHorizontal, FileDown, Loader2, Archive, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -38,9 +49,41 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const [rows, setRows] = useState<ContractRow[]>([]);
   const [authors, setAuthors] = useState<Record<string, string>>({});
   const [authorFilter, setAuthorFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"active" | "archived" | "all">("active");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<ContractRow | null>(null);
+
+  const archiveContract = async (row: ContractRow) => {
+    setBusyId(row.id);
+    const { error } = await supabase
+      .from("contracts")
+      .update({ status: "archived" })
+      .eq("id", row.id);
+    setBusyId(null);
+    if (error) {
+      toast({ title: "Nie udało się zarchiwizować", description: error.message, variant: "destructive" });
+      return;
+    }
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: "archived" } : r)));
+    toast({ title: "Umowa zarchiwizowana", description: row.number });
+  };
+
+  const deleteContract = async (row: ContractRow) => {
+    setBusyId(row.id);
+    const { error } = await supabase.from("contracts").delete().eq("id", row.id);
+    setBusyId(null);
+    setToDelete(null);
+    if (error) {
+      toast({ title: "Nie udało się usunąć umowy", description: error.message, variant: "destructive" });
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    toast({ title: "Umowa usunięta", description: `${row.number} — licznik numeracji pozostał bez zmian.` });
+  };
+
 
   const handleServerPdf = async (row: ContractRow) => {
     setDownloadingId(row.id);
