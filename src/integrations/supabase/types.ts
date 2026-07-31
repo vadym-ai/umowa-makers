@@ -393,6 +393,10 @@ export type Database = {
         Args: { _month: number; _org_id: string; _year: number }
         Returns: string
       }
+      set_contract_counter: {
+        Args: { _org_id: string; _period_key: string; _value: number }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
