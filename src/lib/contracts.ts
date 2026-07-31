@@ -32,6 +32,7 @@ export interface ContractRow {
   period_year: number | null;
   data: ContractSnapshot;
   status: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
