@@ -5,6 +5,7 @@ export interface Company {
   address: string | null;
   nip: string | null;
   representative: string | null;
+  is_default?: boolean;
 }
 
 export interface Contractor {
@@ -13,7 +14,9 @@ export interface Contractor {
   full_name: string;
   address: string | null;
   pesel: string | null;
+  is_default?: boolean;
 }
+
 
 export interface NumberingRule {
   id: string;
