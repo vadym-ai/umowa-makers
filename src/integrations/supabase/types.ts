@@ -52,6 +52,38 @@ export type Database = {
           },
         ]
       }
+      contract_counters: {
+        Row: {
+          counter: number
+          created_at: string
+          org_id: string
+          period_key: string
+          updated_at: string
+        }
+        Insert: {
+          counter?: number
+          created_at?: string
+          org_id: string
+          period_key: string
+          updated_at?: string
+        }
+        Update: {
+          counter?: number
+          created_at?: string
+          org_id?: string
+          period_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_counters_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contractors: {
         Row: {
           address: string | null
@@ -80,6 +112,76 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "contractors_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          company_id: string | null
+          contract_type: string
+          contractor_id: string | null
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          number: string
+          org_id: string
+          period_month: number | null
+          period_year: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          contract_type?: string
+          contractor_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          number: string
+          org_id: string
+          period_month?: number | null
+          period_year?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          contract_type?: string
+          contractor_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          number?: string
+          org_id?: string
+          period_month?: number | null
+          period_year?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -195,7 +297,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      contract_period_key: {
+        Args: { _month: number; _reset_period: string; _year: number }
+        Returns: string
+      }
+      format_contract_number: {
+        Args: {
+          _counter: number
+          _format: string
+          _month: number
+          _prefix: string
+          _year: number
+        }
+        Returns: string
+      }
+      import_local_counters: {
+        Args: { _counters: Json; _org_id: string }
+        Returns: undefined
+      }
+      next_contract_number: {
+        Args: { _month: number; _org_id: string; _year: number }
+        Returns: string
+      }
+      preview_contract_number: {
+        Args: { _month: number; _org_id: string; _year: number }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,15 +1,17 @@
-import { useState, useRef, useMemo, useEffect } from "react";
-import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle, Building2, User } from "lucide-react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle, Building2, User, Save, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContractPreview } from "@/components/ContractPreview";
-import { getCurrentCounter, incrementCounter, formatContractNumber, ResetPeriod } from "@/lib/contractDefaults";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useOrg } from "@/hooks/useOrg";
+import { useAuth } from "@/hooks/useAuth";
 import { Company, Contractor } from "@/lib/parties";
+import { ContractRow, ContractSnapshot } from "@/lib/contracts";
 import { numberToPolishWords } from "@/lib/numberToWords";
 import { getRandomDescription } from "@/lib/contractDescriptions";
 import { toast } from "@/hooks/use-toast";
@@ -36,14 +38,21 @@ function formatDatePolish(isoDate: string) {
   return `${d}.${m}.${y}`;
 }
 
-export function GeneratorTab() {
+interface GeneratorTabProps {
+  editingContract?: ContractRow | null;
+  onExitEdit?: () => void;
+}
+
+export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTabProps) {
   const now = new Date();
   const { orgId } = useOrg();
+  const { user } = useAuth();
   const [amountNet, setAmountNet] = useState(8000);
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [subject, setSubject] = useState("");
-  const [counter, setCounter] = useState(() => getCurrentCounter(now.getMonth() + 1, now.getFullYear()));
+  const [previewNumber, setPreviewNumber] = useState("—");
+  const [saving, setSaving] = useState(false);
   const [startDate, setStartDate] = useState(() => formatDateForInput(now));
   const [endDate, setEndDate] = useState(() => {
     const last = getLastDay(now.getMonth() + 1, now.getFullYear());
@@ -55,61 +64,76 @@ export function GeneratorTab() {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [companyId, setCompanyId] = useState<string>("");
   const [contractorId, setContractorId] = useState<string>("");
-  const [prefix, setPrefix] = useState("W-");
-  const [numberFormat, setNumberFormat] = useState("{prefix}{NN}/{MM}/{YY}");
-  const [resetPeriod, setResetPeriod] = useState<ResetPeriod>("monthly");
+
+  const isEditing = !!editingContract;
 
   useEffect(() => {
     if (!orgId) return;
     let active = true;
     (async () => {
-      const [c1, c2, n] = await Promise.all([
+      const [c1, c2] = await Promise.all([
         supabase.from("companies").select("*").eq("org_id", orgId).order("created_at"),
         supabase.from("contractors").select("*").eq("org_id", orgId).order("created_at"),
-        supabase.from("numbering_rules").select("prefix, format, reset_period").eq("org_id", orgId).maybeSingle(),
       ]);
       if (!active) return;
-      const err = c1.error || c2.error || n.error;
+      const err = c1.error || c2.error;
       if (err) {
         toast({ title: "Błąd wczytywania danych", description: err.message, variant: "destructive" });
         return;
       }
-      const comps = (c1.data as Company[]) ?? [];
-      const cons = (c2.data as Contractor[]) ?? [];
-      setCompanies(comps);
-      setContractors(cons);
-      if (n.data?.prefix) setPrefix(n.data.prefix);
-      if (n.data?.format) setNumberFormat(n.data.format);
-      if (n.data?.reset_period) {
-        const rp = n.data.reset_period as ResetPeriod;
-        setResetPeriod(rp);
-        setCounter(getCurrentCounter(selectedMonth, selectedYear, rp));
-      }
+      setCompanies((c1.data as Company[]) ?? []);
+      setContractors((c2.data as Contractor[]) ?? []);
     })();
     return () => {
       active = false;
     };
   }, [orgId]);
 
+  // Prefill from an existing contract (edit mode)
+  useEffect(() => {
+    if (!editingContract) return;
+    const d = editingContract.data ?? ({} as ContractSnapshot);
+    setAmountNet(d.amountNet ?? 0);
+    setSubject(d.subject ?? "");
+    if (d.startDate) setStartDate(d.startDate);
+    if (d.endDate) setEndDate(d.endDate);
+    setSelectedMonth(editingContract.period_month ?? d.month ?? now.getMonth() + 1);
+    setSelectedYear(editingContract.period_year ?? d.year ?? now.getFullYear());
+    setCompanyId(editingContract.company_id ?? "");
+    setContractorId(editingContract.contractor_id ?? "");
+    setPreviewNumber(editingContract.number);
+  }, [editingContract]);
+
+  const refreshPreviewNumber = useCallback(async () => {
+    if (!orgId || isEditing) return;
+    const { data, error } = await supabase.rpc("preview_contract_number", {
+      _org_id: orgId,
+      _month: selectedMonth,
+      _year: selectedYear,
+    });
+    if (error) {
+      toast({ title: "Błąd numeracji", description: error.message, variant: "destructive" });
+      return;
+    }
+    setPreviewNumber((data as string) ?? "—");
+  }, [orgId, selectedMonth, selectedYear, isEditing]);
+
+  useEffect(() => {
+    refreshPreviewNumber();
+  }, [refreshPreviewNumber]);
+
   // Preselect the first entry once lists load, if nothing is selected yet
   useEffect(() => {
-    if (!companyId && companies.length > 0) setCompanyId(companies[0].id);
-  }, [companies, companyId]);
+    if (!isEditing && !companyId && companies.length > 0) setCompanyId(companies[0].id);
+  }, [companies, companyId, isEditing]);
 
   useEffect(() => {
-    if (!contractorId && contractors.length > 0) setContractorId(contractors[0].id);
-  }, [contractors, contractorId]);
-
+    if (!isEditing && !contractorId && contractors.length > 0) setContractorId(contractors[0].id);
+  }, [contractors, contractorId, isEditing]);
 
   const company = companies.find((c) => c.id === companyId) ?? null;
   const contractor = contractors.find((c) => c.id === contractorId) ?? null;
 
-  const contractNumber = formatContractNumber(numberFormat, {
-    prefix,
-    counter,
-    month: selectedMonth,
-    year: selectedYear,
-  });
   const startDateFormatted = formatDatePolish(startDate);
   const endDateFormatted = formatDatePolish(endDate);
   const amountWords = useMemo(() => numberToPolishWords(amountNet), [amountNet]);
@@ -120,7 +144,6 @@ export function GeneratorTab() {
   const handleMonthChange = (v: string) => {
     const m = Number(v);
     setSelectedMonth(m);
-    setCounter(getCurrentCounter(m, selectedYear, resetPeriod));
     const last = getLastDay(m, selectedYear);
     setEndDate(formatDateForInput(new Date(selectedYear, m - 1, last)));
   };
@@ -128,29 +151,92 @@ export function GeneratorTab() {
   const handleYearChange = (v: string) => {
     const y = Number(v);
     setSelectedYear(y);
-    setCounter(getCurrentCounter(selectedMonth, y, resetPeriod));
     const last = getLastDay(selectedMonth, y);
     setEndDate(formatDateForInput(new Date(y, selectedMonth - 1, last)));
   };
 
-  const bumpCounter = () => {
-    const nextCounter = incrementCounter(selectedMonth, selectedYear, resetPeriod);
-    setCounter(nextCounter);
-    return formatContractNumber(numberFormat, {
-      prefix,
-      counter: nextCounter,
-      month: selectedMonth,
-      year: selectedYear,
+  const buildSnapshot = (): ContractSnapshot => ({
+    amountNet,
+    amountWords,
+    subject,
+    startDate,
+    endDate,
+    month: selectedMonth,
+    year: selectedYear,
+    company: company
+      ? {
+          id: company.id,
+          name: company.name,
+          address: company.address,
+          nip: company.nip,
+          representative: company.representative,
+        }
+      : editingContract?.data?.company ?? null,
+    contractor: contractor
+      ? {
+          id: contractor.id,
+          full_name: contractor.full_name,
+          address: contractor.address,
+          pesel: contractor.pesel,
+        }
+      : editingContract?.data?.contractor ?? null,
+  });
+
+  const handleConfirmContract = async () => {
+    if (!orgId) return;
+    setSaving(true);
+    const { data: num, error } = await supabase.rpc("next_contract_number", {
+      _org_id: orgId,
+      _month: selectedMonth,
+      _year: selectedYear,
     });
+    if (error || !num) {
+      setSaving(false);
+      toast({ title: "Błąd numeracji", description: error?.message ?? "Brak numeru", variant: "destructive" });
+      return;
+    }
+    const { error: insErr } = await supabase.from("contracts").insert({
+      org_id: orgId,
+      company_id: companyId || null,
+      contractor_id: contractorId || null,
+      number: num as string,
+      period_month: selectedMonth,
+      period_year: selectedYear,
+      data: buildSnapshot() as unknown as Json,
+      created_by: user?.id ?? null,
+    });
+    setSaving(false);
+    if (insErr) {
+      toast({ title: "Błąd zapisu umowy", description: insErr.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Umowa zatwierdzona", description: `Numer umowy: ${num}` });
+    setSubject("");
+    refreshPreviewNumber();
   };
 
-  const handleConfirmContract = () => {
-    const nextNumber = bumpCounter();
-    toast({
-      title: "Umowa zatwierdzona",
-      description: `Następna umowa będzie miała numer ${nextNumber}`,
-    });
+  const handleSaveChanges = async () => {
+    if (!editingContract) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("contracts")
+      .update({
+        company_id: companyId || null,
+        contractor_id: contractorId || null,
+        period_month: selectedMonth,
+        period_year: selectedYear,
+        data: buildSnapshot() as unknown as Json,
+      })
+      .eq("id", editingContract.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Błąd zapisu", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Zapisano zmiany", description: `Umowa ${editingContract.number}` });
   };
+
+  const contractNumber = previewNumber;
 
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return;
@@ -166,15 +252,50 @@ export function GeneratorTab() {
     await html2pdf().set(opt).from(previewRef.current).save();
   };
 
+  const previewCompany: Company | null =
+    company ??
+    (editingContract?.data?.company
+      ? ({
+          id: editingContract.data.company.id ?? "",
+          org_id: editingContract.org_id,
+          name: editingContract.data.company.name,
+          address: editingContract.data.company.address,
+          nip: editingContract.data.company.nip,
+          representative: editingContract.data.company.representative,
+        } as Company)
+      : null);
+
+  const previewContractor: Contractor | null =
+    contractor ??
+    (editingContract?.data?.contractor
+      ? ({
+          id: editingContract.data.contractor.id ?? "",
+          org_id: editingContract.org_id,
+          full_name: editingContract.data.contractor.full_name,
+          address: editingContract.data.contractor.address,
+          pesel: editingContract.data.contractor.pesel,
+        } as Contractor)
+      : null);
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Control Panel */}
       <div className="w-full lg:w-80 lg:shrink-0 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Generator Umowy</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            {isEditing ? "Edycja umowy" : "Generator Umowy"}
+          </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Wypełnij dane i pobierz gotowy PDF.
+            {isEditing
+              ? `Edytujesz umowę ${editingContract?.number}.`
+              : "Wypełnij dane i pobierz gotowy PDF."}
           </p>
+          {isEditing && (
+            <Button variant="ghost" size="sm" className="mt-2 -ml-2" onClick={onExitEdit}>
+              <X className="mr-2 h-4 w-4" />
+              Zakończ edycję
+            </Button>
+          )}
         </div>
 
         <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-4">
@@ -222,7 +343,6 @@ export function GeneratorTab() {
             </p>
           )}
         </div>
-
 
         <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-4">
           <div>
@@ -361,10 +481,17 @@ export function GeneratorTab() {
             <FileDown className="mr-2 h-5 w-5" />
             Pobierz PDF
           </Button>
-          <Button onClick={handleConfirmContract} variant="outline" size="lg" className="w-full sm:w-auto">
-            <CheckCircle className="mr-2 h-5 w-5" />
-            Zatwierdź
-          </Button>
+          {isEditing ? (
+            <Button onClick={handleSaveChanges} variant="outline" size="lg" className="w-full sm:w-auto" disabled={saving}>
+              <Save className="mr-2 h-5 w-5" />
+              Zapisz zmiany
+            </Button>
+          ) : (
+            <Button onClick={handleConfirmContract} variant="outline" size="lg" className="w-full sm:w-auto" disabled={saving || !orgId}>
+              <CheckCircle className="mr-2 h-5 w-5" />
+              Zatwierdź
+            </Button>
+          )}
         </div>
       </div>
 
@@ -376,8 +503,8 @@ export function GeneratorTab() {
             contractNumber={contractNumber}
             startDate={startDateFormatted}
             endDate={endDateFormatted}
-            company={company}
-            contractor={contractor}
+            company={previewCompany}
+            contractor={previewContractor}
             subject={subject || "—"}
             amountNet={amountNet}
             amountWords={amountWords}
