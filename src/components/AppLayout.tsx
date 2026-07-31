@@ -1,9 +1,11 @@
-import { FileText, Settings, LogOut, History } from "lucide-react";
+import { FileText, Settings, LogOut, History, Users } from "lucide-react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrg } from "@/hooks/useOrg";
+import { roleLabel } from "@/lib/roles";
 
-const navItems = [
+const baseNav = [
   { to: "/generator/umowa-o-dzielo", label: "Generator Umowy", icon: FileText },
   { to: "/historia", label: "Historia", icon: History },
   { to: "/dane-stron", label: "Dane Stron", icon: Settings },
@@ -11,7 +13,12 @@ const navItems = [
 
 export function AppLayout() {
   const { user, signOut } = useAuth();
+  const { orgName, role, isOwner } = useOrg();
   const navigate = useNavigate();
+
+  const navItems = isOwner
+    ? [...baseNav, { to: "/organizacja", label: "Organizacja", icon: Users }]
+    : baseNav;
 
   const handleSignOut = async () => {
     await signOut();
@@ -29,6 +36,16 @@ export function AppLayout() {
             <FileText className="h-5 w-5 text-primary" />
             <span>UOD Generator</span>
           </Link>
+          {orgName && (
+            <span className="hidden xl:flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <span className="truncate max-w-[180px]">{orgName}</span>
+              {role && (
+                <span className="rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs font-medium">
+                  {roleLabel(role)}
+                </span>
+              )}
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-3 order-2 lg:order-none shrink-0">
             <span className="text-sm text-muted-foreground hidden md:inline truncate max-w-[200px]">
               {user?.email}
