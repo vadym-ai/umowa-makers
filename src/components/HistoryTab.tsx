@@ -258,7 +258,15 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                 onClick={() => onOpenContract(r)}
                 className="border-b last:border-0 cursor-pointer hover:bg-muted/50 transition-colors"
               >
-                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{r.number}</td>
+                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                  <span className="inline-flex items-center gap-2">
+                    {r.number}
+                    {r.status === "archived" && (
+                      <Badge variant="secondary" className="font-normal">Archiwalna</Badge>
+                    )}
+                  </span>
+                </td>
+
                 <td className="px-4 py-3 whitespace-nowrap">{r.data?.startDate ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.contractor?.full_name ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.company?.name ?? "—"}</td>
