@@ -145,7 +145,15 @@ export function SettingsTab() {
                   {c.representative}
                 </p>
               </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+                <Switch
+                  checked={!!c.is_default}
+                  onCheckedChange={(v) => setDefaultParty("companies", c.id, v)}
+                />
+                Domyślny
+              </label>
               <Button
+
                 variant="ghost"
                 size="icon"
                 onClick={() => {
