@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, History, MoreHorizontal, FileDown, Loader2 } from "lucide-react";
+import { Search, History, MoreHorizontal, FileDown, Loader2, Archive, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -38,9 +49,41 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const [rows, setRows] = useState<ContractRow[]>([]);
   const [authors, setAuthors] = useState<Record<string, string>>({});
   const [authorFilter, setAuthorFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"active" | "archived" | "all">("active");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<ContractRow | null>(null);
+
+  const archiveContract = async (row: ContractRow) => {
+    setBusyId(row.id);
+    const { error } = await supabase
+      .from("contracts")
+      .update({ status: "archived" })
+      .eq("id", row.id);
+    setBusyId(null);
+    if (error) {
+      toast({ title: "Nie udało się zarchiwizować", description: error.message, variant: "destructive" });
+      return;
+    }
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: "archived" } : r)));
+    toast({ title: "Umowa zarchiwizowana", description: row.number });
+  };
+
+  const deleteContract = async (row: ContractRow) => {
+    setBusyId(row.id);
+    const { error } = await supabase.from("contracts").delete().eq("id", row.id);
+    setBusyId(null);
+    setToDelete(null);
+    if (error) {
+      toast({ title: "Nie udało się usunąć umowy", description: error.message, variant: "destructive" });
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    toast({ title: "Umowa usunięta", description: `${row.number} — licznik numeracji pozostał bez zmian.` });
+  };
+
 
   const handleServerPdf = async (row: ContractRow) => {
     setDownloadingId(row.id);
@@ -119,6 +162,8 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
+      if (statusFilter === "active" && r.status === "archived") return false;
+      if (statusFilter === "archived" && r.status !== "archived") return false;
       if (isAdmin && authorFilter !== "all" && r.created_by !== authorFilter) return false;
       if (!q) return true;
       return (
@@ -126,7 +171,8 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
         (r.data?.contractor?.full_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [rows, query, isAdmin, authorFilter]);
+  }, [rows, query, isAdmin, authorFilter, statusFilter]);
+
 
   const authorOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[],
@@ -172,7 +218,18 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
             </SelectContent>
           </Select>
         )}
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Aktywne</SelectItem>
+            <SelectItem value="archived">Archiwalne</SelectItem>
+            <SelectItem value="all">Wszystkie</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
 
       <div className="bg-card rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
@@ -201,7 +258,15 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                 onClick={() => onOpenContract(r)}
                 className="border-b last:border-0 cursor-pointer hover:bg-muted/50 transition-colors"
               >
-                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{r.number}</td>
+                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                  <span className="inline-flex items-center gap-2">
+                    {r.number}
+                    {r.status === "archived" && (
+                      <Badge variant="secondary" className="font-normal">Archiwalna</Badge>
+                    )}
+                  </span>
+                </td>
+
                 <td className="px-4 py-3 whitespace-nowrap">{r.data?.startDate ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.contractor?.full_name ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.company?.name ?? "—"}</td>
@@ -214,12 +279,13 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Akcje umowy">
-                        {downloadingId === r.id ? (
+                        {downloadingId === r.id || busyId === r.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <MoreHorizontal className="h-4 w-4" />
                         )}
                       </Button>
+
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
@@ -232,7 +298,33 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                         <FileDown className="mr-2 h-4 w-4" />
                         Pobierz PDF (serwer)
                       </DropdownMenuItem>
+                      {isAdmin && r.status !== "archived" && (
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            archiveContract(r);
+                          }}
+                          disabled={busyId === r.id}
+                        >
+                          <Archive className="mr-2 h-4 w-4" />
+                          Archiwizuj
+                        </DropdownMenuItem>
+                      )}
+                      {isAdmin && (
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setToDelete(r);
+                          }}
+                          disabled={busyId === r.id}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Usuń
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
+
                   </DropdownMenu>
                 </td>
               </tr>
@@ -241,6 +333,28 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
           </tbody>
         </table>
       </div>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Usunąć umowę {toDelete?.number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ta operacja jest nieodwracalna. Usunięcie umowy NIE cofa licznika numeracji —
+              kolejna umowa otrzyma następny numer, a numer usuniętej umowy pozostanie niewykorzystany.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => toDelete && deleteContract(toDelete)}
+            >
+              Usuń umowę
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
