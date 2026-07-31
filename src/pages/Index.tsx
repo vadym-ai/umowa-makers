@@ -77,7 +77,14 @@ const Index = () => {
 
       {/* Content */}
       <main className="flex-1 max-w-[1400px] mx-auto w-full px-4 lg:px-6 py-4 lg:py-6">
-        {activeTab === "generator" ? <GeneratorTab /> : <SettingsTab />}
+        {activeTab === "generator" && (
+          <GeneratorTab
+            editingContract={editingContract}
+            onExitEdit={() => setEditingContract(null)}
+          />
+        )}
+        {activeTab === "history" && <HistoryTab onOpenContract={handleOpenContract} />}
+        {activeTab === "settings" && <SettingsTab />}
       </main>
 
     </div>
