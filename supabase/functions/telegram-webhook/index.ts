@@ -199,12 +199,47 @@ async function handleUmowa(chatId: number, userId: string, args: string) {
     contractor = def;
   }
 
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
   const lastDay = new Date(year, month, 0).getDate();
-  const startDate = `${year}-${pad(month)}-${pad(now.getDate())}`;
-  const endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
+
+  const { data: periodContracts, error: pcErr } = await admin
+    .from("contracts")
+    .select("data")
+    .eq("org_id", orgId)
+    .eq("period_month", month)
+    .eq("period_year", year);
+  if (pcErr) {
+    console.error("period contracts lookup failed", pcErr.message);
+    await sendMessage(chatId, "Błąd odczytu istniejących umów.");
+    return;
+  }
+
+  let startDay = 1;
+  const existingStarts = (periodContracts ?? [])
+    .map((c) => (c.data as { startDate?: string } | null)?.startDate)
+    .filter((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
+  if (existingStarts.length > 0) {
+    const last = new Date(`${existingStarts[existingStarts.length - 1]}T00:00:00Z`);
+    const next = new Date(last.getTime() + 86400000);
+    if (next.getUTCFullYear() !== year || next.getUTCMonth() + 1 !== month) {
+      await sendMessage(
+        chatId,
+        `Brak wolnych dat w ${pad(month)}/${year} — ostatnia umowa zaczyna się ${pad(last.getUTCDate())}.${pad(month)}. Użyj innego okresu.`,
+      );
+      return;
+    }
+    startDay = next.getUTCDate();
+  }
+
+  const startDate = `${year}-${pad(month)}-${pad(startDay)}`;
+  let endDate: string;
+  if (durationDays && durationDays > 0) {
+    const end = new Date(Date.UTC(year, month - 1, startDay) + (durationDays - 1) * 86400000);
+    endDate = `${end.getUTCFullYear()}-${pad(end.getUTCMonth() + 1)}-${pad(end.getUTCDate())}`;
+  } else {
+    endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
+  }
+
 
   const { data: number, error: nErr } = await admin.rpc("next_contract_number_for_user", {
     _user_id: userId,
