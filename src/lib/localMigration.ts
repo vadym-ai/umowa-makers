@@ -1,12 +1,34 @@
 import { supabase } from "@/integrations/supabase/client";
 
 const DONE_KEY = "uod_migrated_to_cloud";
+const COUNTERS_KEY = "uod_counters";
+
+/** One-time import of legacy localStorage contract counters into the database. */
+async function migrateCounters(orgId: string) {
+  const raw = localStorage.getItem(COUNTERS_KEY);
+  if (!raw) return;
+  try {
+    const counters = JSON.parse(raw);
+    if (counters && typeof counters === "object" && Object.keys(counters).length > 0) {
+      const { error } = await supabase.rpc("import_local_counters", {
+        _org_id: orgId,
+        _counters: counters,
+      });
+      if (error) return;
+    }
+  } catch {
+    // corrupted payload — drop it
+  }
+  localStorage.removeItem(COUNTERS_KEY);
+}
 
 /**
  * One-time import of legacy localStorage party/numbering data into the database.
  * Runs only when the org has no companies/contractors yet.
  */
 export async function migrateLocalStorageData(orgId: string) {
+  await migrateCounters(orgId);
+
   if (localStorage.getItem(DONE_KEY)) return;
 
   const rawClient = localStorage.getItem("uod_client");
