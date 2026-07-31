@@ -17,11 +17,16 @@ type ContractorForm = { full_name: string; address: string; pesel: string };
 const emptyCompany: CompanyForm = { name: "", address: "", nip: "", representative: "" };
 const emptyContractor: ContractorForm = { full_name: "", address: "", pesel: "" };
 
+type CounterRow = { period_key: string; counter: number };
+
 export function SettingsTab() {
-  const { orgId, isAdmin, loading: orgLoading } = useOrg();
+  const { orgId, isAdmin, isOwner, loading: orgLoading } = useOrg();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [prefix, setPrefix] = useState("W-");
+  const [counters, setCounters] = useState<CounterRow[]>([]);
+  const [counterDrafts, setCounterDrafts] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const [companyForm, setCompanyForm] = useState<CompanyForm>(emptyCompany);
   const [editingCompany, setEditingCompany] = useState<string | null>(null);
@@ -29,12 +34,13 @@ export function SettingsTab() {
   const [editingContractor, setEditingContractor] = useState<string | null>(null);
 
   const reload = async (id: string) => {
-    const [c1, c2, n] = await Promise.all([
+    const [c1, c2, n, cc] = await Promise.all([
       supabase.from("companies").select("*").eq("org_id", id).order("created_at"),
       supabase.from("contractors").select("*").eq("org_id", id).order("created_at"),
       supabase.from("numbering_rules").select("*").eq("org_id", id).maybeSingle(),
+      supabase.from("contract_counters").select("period_key, counter").eq("org_id", id).order("period_key"),
     ]);
-    const err = c1.error || c2.error || n.error;
+    const err = c1.error || c2.error || n.error || cc.error;
     if (err) {
       toast({ title: "Błąd wczytywania danych", description: err.message, variant: "destructive" });
       return;
@@ -42,12 +48,31 @@ export function SettingsTab() {
     setCompanies((c1.data as Company[]) ?? []);
     setContractors((c2.data as Contractor[]) ?? []);
     if (n.data?.prefix) setPrefix(n.data.prefix);
+    const rows = (cc.data as CounterRow[]) ?? [];
+    setCounters(rows);
+    setCounterDrafts(Object.fromEntries(rows.map((r) => [r.period_key, String(r.counter)])));
   };
 
+  const saveCounter = async (periodKey: string, value: number) => {
+    if (!orgId) return;
+    setSavingKey(periodKey);
+    const { error } = await supabase.rpc("set_contract_counter", {
+      _org_id: orgId,
+      _period_key: periodKey,
+      _value: value,
+    });
+    setSavingKey(null);
+    if (error) {
+      return toast({ title: "Błąd zapisu licznika", description: error.message, variant: "destructive" });
+    }
+    toast({ title: "Licznik zaktualizowany", description: `${periodKey}: ${value}` });
+    reload(orgId);
+  };
 
   useEffect(() => {
     if (orgId) reload(orgId);
   }, [orgId]);
+
 
   const saveCompany = async () => {
     if (!orgId || !companyForm.name.trim()) return;
