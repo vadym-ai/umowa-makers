@@ -463,7 +463,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
               variant="outline"
               size="sm"
               className="mt-2 w-full"
-              onClick={() => setSubject(getRandomDescription())}
+              onClick={() => setSubject(getRandomDescription(amountNet || undefined))}
             >
               <Sparkles className="mr-2 h-3.5 w-3.5" />
               Zaproponuj unikalne dzieło

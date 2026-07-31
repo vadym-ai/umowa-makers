@@ -136,7 +136,7 @@ async function handleUmowa(chatId: number, userId: string, args: string) {
     subjectWords.push(token);
   }
 
-  const subject = subjectWords.join(" ").trim() || getRandomDescription();
+  const subject = subjectWords.join(" ").trim() || getRandomDescription(amountNet);
 
 
   const { data: membership, error: mErr } = await admin
