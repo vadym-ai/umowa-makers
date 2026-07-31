@@ -380,6 +380,15 @@ export type Database = {
         Args: { _month: number; _org_id: string; _year: number }
         Returns: string
       }
+      next_contract_number_for_user: {
+        Args: {
+          _month: number
+          _org_id: string
+          _user_id: string
+          _year: number
+        }
+        Returns: string
+      }
       preview_contract_number: {
         Args: { _month: number; _org_id: string; _year: number }
         Returns: string

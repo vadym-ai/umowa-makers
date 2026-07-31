@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { numberToPolishWords } from "./words.ts";
+import { getRandomDescription } from "./descriptions.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -12,10 +13,17 @@ const HELP = [
   "Dostępne komendy:",
   "",
   "/start KOD — połącz konto z aplikacją",
-  "/umowa KWOTA OPIS — wystaw umowę o dzieło dla domyślnego wykonawcy",
-  "/umowa KWOTA OPIS @fragment — wskaż wykonawcę po fragmencie nazwiska",
+  "/umowa KWOTA [opis] [MM/RR] [Nd] [@fragment]",
+  "",
+  "Przykłady:",
+  "/umowa 500 — losowy przedmiot, bieżący miesiąc, start wg kolejki",
+  "/umowa 500 07/26 — umowa za lipiec 2026",
+  "/umowa 800 Projekt logo 07/26 14d — 14 dni od daty startu",
+  "/umowa 800 Projekt logo @Kowal — wskazany wykonawca",
+  "",
   "/pomoc — ta wiadomość",
 ].join("\n");
+
 
 function safeEqual(a: string | null, b: string): boolean {
   if (!a || a.length !== b.length) return false;
@@ -86,7 +94,7 @@ async function handleStart(chatId: number, arg: string) {
 async function handleUmowa(chatId: number, userId: string, args: string) {
   const trimmed = args.trim();
   if (!trimmed) {
-    await sendMessage(chatId, "Użycie: /umowa KWOTA OPIS [@fragment nazwiska]");
+    await sendMessage(chatId, "Użycie: /umowa KWOTA [opis] [MM/RR] [Nd] [@fragment]");
     return;
   }
 
@@ -96,19 +104,40 @@ async function handleUmowa(chatId: number, userId: string, args: string) {
     await sendMessage(chatId, "Nieprawidłowa kwota. Użycie: /umowa 8000 Projekt logo");
     return;
   }
-  let rest = parts.slice(1).join(" ").trim();
 
+  const now = new Date();
+  let month = now.getMonth() + 1;
+  let year = now.getFullYear();
+  let durationDays: number | null = null;
   let nameFragment: string | null = null;
-  const mentionMatch = rest.match(/@([^\s@]+)\s*$/);
-  if (mentionMatch) {
-    nameFragment = mentionMatch[1];
-    rest = rest.slice(0, mentionMatch.index).trim();
+  const subjectWords: string[] = [];
+
+  for (const token of parts.slice(1)) {
+    const period = token.match(/^(\d{1,2})\/(\d{2}|\d{4})$/);
+    if (period) {
+      const m = Number(period[1]);
+      if (m < 1 || m > 12) {
+        await sendMessage(chatId, "Nieprawidłowy miesiąc w okresie. Użyj formatu MM/RR, np. 07/26.");
+        return;
+      }
+      month = m;
+      year = period[2].length === 2 ? 2000 + Number(period[2]) : Number(period[2]);
+      continue;
+    }
+    const dur = token.match(/^(\d{1,3})d$/i);
+    if (dur) {
+      durationDays = Number(dur[1]);
+      continue;
+    }
+    if (token.startsWith("@") && token.length > 1) {
+      nameFragment = token.slice(1);
+      continue;
+    }
+    subjectWords.push(token);
   }
-  const subject = rest;
-  if (!subject) {
-    await sendMessage(chatId, "Podaj opis dzieła. Użycie: /umowa 8000 Projekt logo");
-    return;
-  }
+
+  const subject = subjectWords.join(" ").trim() || getRandomDescription();
+
 
   const { data: membership, error: mErr } = await admin
     .from("organization_members")
@@ -170,12 +199,47 @@ async function handleUmowa(chatId: number, userId: string, args: string) {
     contractor = def;
   }
 
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
   const lastDay = new Date(year, month, 0).getDate();
-  const startDate = `${year}-${pad(month)}-${pad(now.getDate())}`;
-  const endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
+
+  const { data: periodContracts, error: pcErr } = await admin
+    .from("contracts")
+    .select("data")
+    .eq("org_id", orgId)
+    .eq("period_month", month)
+    .eq("period_year", year);
+  if (pcErr) {
+    console.error("period contracts lookup failed", pcErr.message);
+    await sendMessage(chatId, "Błąd odczytu istniejących umów.");
+    return;
+  }
+
+  let startDay = 1;
+  const existingStarts = (periodContracts ?? [])
+    .map((c) => (c.data as { startDate?: string } | null)?.startDate)
+    .filter((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
+  if (existingStarts.length > 0) {
+    const last = new Date(`${existingStarts[existingStarts.length - 1]}T00:00:00Z`);
+    const next = new Date(last.getTime() + 86400000);
+    if (next.getUTCFullYear() !== year || next.getUTCMonth() + 1 !== month) {
+      await sendMessage(
+        chatId,
+        `Brak wolnych dat w ${pad(month)}/${year} — ostatnia umowa zaczyna się ${pad(last.getUTCDate())}.${pad(month)}. Użyj innego okresu.`,
+      );
+      return;
+    }
+    startDay = next.getUTCDate();
+  }
+
+  const startDate = `${year}-${pad(month)}-${pad(startDay)}`;
+  let endDate: string;
+  if (durationDays && durationDays > 0) {
+    const end = new Date(Date.UTC(year, month - 1, startDay) + (durationDays - 1) * 86400000);
+    endDate = `${end.getUTCFullYear()}-${pad(end.getUTCMonth() + 1)}-${pad(end.getUTCDate())}`;
+  } else {
+    endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
+  }
+
 
   const { data: number, error: nErr } = await admin.rpc("next_contract_number_for_user", {
     _user_id: userId,
