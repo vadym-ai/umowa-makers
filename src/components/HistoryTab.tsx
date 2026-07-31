@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, History } from "lucide-react";
+import { Search, History, MoreHorizontal, FileDown, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -12,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { ContractRow } from "@/lib/contracts";
 import { toast } from "@/hooks/use-toast";
+
 
 function formatPln(v: number) {
   return new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(v || 0);
@@ -32,6 +40,36 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const [authorFilter, setAuthorFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleServerPdf = async (row: ContractRow) => {
+    setDownloadingId(row.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-contract-pdf", {
+        body: { contract_id: row.id },
+      });
+      if (error) throw error;
+      const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `UOD-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast({
+        title: "Nie udało się pobrać PDF",
+        description: e instanceof Error ? e.message : "Nieznany błąd",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+
 
   useEffect(() => {
     if (!orgId) return;
@@ -95,7 +133,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
     [rows]
   );
 
-  const colCount = isAdmin ? 7 : 6;
+  const colCount = isAdmin ? 8 : 7;
 
   return (
     <div className="space-y-6">
@@ -147,6 +185,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
               {isAdmin && <th className="text-left font-medium px-4 py-3">Autor</th>}
               <th className="text-right font-medium px-4 py-3">Kwota</th>
               <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Utworzono</th>
+              <th className="w-10 px-2 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -171,8 +210,34 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                 )}
                 <td className="px-4 py-3 text-right whitespace-nowrap">{formatPln(r.data?.amountNet ?? 0)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{formatDate(r.created_at)}</td>
+                <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Akcje umowy">
+                        {downloadingId === r.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MoreHorizontal className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleServerPdf(r);
+                        }}
+                        disabled={downloadingId === r.id}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Pobierz PDF (serwer)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
               </tr>
             ))}
+
           </tbody>
         </table>
       </div>
