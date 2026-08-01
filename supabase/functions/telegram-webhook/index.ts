@@ -21,8 +21,18 @@ const HELP = [
   "/umowa 800 Projekt logo 07/26 14d — 14 dni od daty startu",
   "/umowa 800 Projekt logo @Kowal — wskazany wykonawca",
   "",
+  "Skany podpisanych umów:",
+  "Wyślij PDF lub zdjęcie — zapiszę je w skrzynce.",
+  "/wyslij — wyślij wszystkie pliki ze skrzynki e-mailem",
+  "/anuluj — wyczyść skrzynkę",
+  "",
   "/pomoc — ta wiadomość",
 ].join("\n");
+
+const MAX_TELEGRAM_FILE = 20 * 1024 * 1024;
+const MAX_EMAIL_TOTAL = 38 * 1024 * 1024;
+const BUCKET = "signed-scans";
+
 
 
 function safeEqual(a: string | null, b: string): boolean {
