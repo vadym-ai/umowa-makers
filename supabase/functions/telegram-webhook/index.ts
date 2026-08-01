@@ -541,8 +541,10 @@ Deno.serve(async (req) => {
     const update = await req.json();
     const message = update.message ?? update.edited_message;
     const chatId: number | undefined = message?.chat?.id;
-    const text: string = typeof message?.text === "string" ? message.text : "";
-    if (!chatId || !text.startsWith("/")) return new Response(JSON.stringify({ ok: true }));
+    const text: string = typeof message?.text === "string" ? message.text : (message?.caption ?? "");
+    const hasFile = !!(message?.document || (message?.photo && message.photo.length > 0));
+    if (!chatId || (!hasFile && !text.startsWith("/"))) return new Response(JSON.stringify({ ok: true }));
+
 
     const spaceIdx = text.indexOf(" ");
     const command = (spaceIdx === -1 ? text : text.slice(0, spaceIdx)).split("@")[0].toLowerCase();
