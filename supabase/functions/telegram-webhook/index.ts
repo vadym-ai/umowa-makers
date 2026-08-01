@@ -324,6 +324,209 @@ async function handleUmowa(chatId: number, userId: string, args: string) {
   await sendDocument(chatId, `UOD-${safeNumber}.pdf`, bytes, `Umowa ${number} — ${contractor.full_name}`);
 }
 
+function sanitizeFilename(name: string) {
+  return name.replace(/[^\p{L}\p{N}\-_. ]/gu, "_").slice(0, 120) || "plik";
+}
+
+async function outboxCount(userId: string) {
+  const { count } = await admin
+    .from("telegram_outbox")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  return count ?? 0;
+}
+
+async function clearOutbox(userId: string) {
+  const { data: rows } = await admin
+    .from("telegram_outbox")
+    .select("id, storage_path")
+    .eq("user_id", userId);
+  const paths = (rows ?? []).map((r) => r.storage_path as string);
+  if (paths.length > 0) {
+    const { error } = await admin.storage.from(BUCKET).remove(paths);
+    if (error) console.error("storage remove failed", error.message);
+  }
+  await admin.from("telegram_outbox").delete().eq("user_id", userId);
+  return paths.length;
+}
+
+async function handleIncomingFile(chatId: number, userId: string, message: Record<string, any>) {
+  let fileId: string | null = null;
+  let filename = "";
+  let mime = "";
+  let size = 0;
+
+  const doc = message.document;
+  const photos = message.photo as Array<Record<string, any>> | undefined;
+
+  if (doc) {
+    mime = doc.mime_type ?? "";
+    if (mime !== "application/pdf" && !mime.startsWith("image/")) {
+      await sendMessage(chatId, "Obsługuję tylko pliki PDF oraz zdjęcia. Wyślij skan jako PDF lub zdjęcie.");
+      return;
+    }
+    fileId = doc.file_id;
+    filename = sanitizeFilename(doc.file_name ?? "skan.pdf");
+    size = doc.file_size ?? 0;
+  } else if (photos && photos.length > 0) {
+    const best = photos[photos.length - 1];
+    fileId = best.file_id;
+    mime = "image/jpeg";
+    filename = `skan_${Date.now()}.jpg`;
+    size = best.file_size ?? 0;
+  } else {
+    await sendMessage(chatId, "Nie rozpoznałem załącznika. Wyślij skan jako PDF lub zdjęcie.");
+    return;
+  }
+
+  if (size > MAX_TELEGRAM_FILE) {
+    await sendMessage(chatId, "Plik jest za duży (limit Telegrama to 20 MB). Wyślij mniejszy plik.");
+    return;
+  }
+
+  const infoRes = await fetch(`${TG_API}/getFile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId }),
+  });
+  const info = await infoRes.json().catch(() => null);
+  if (!infoRes.ok || !info?.ok || !info?.result?.file_path) {
+    console.error("getFile failed", infoRes.status, JSON.stringify(info));
+    await sendMessage(chatId, "Nie udało się pobrać pliku z Telegrama. Spróbuj ponownie.");
+    return;
+  }
+
+  const dl = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${info.result.file_path}`);
+  if (!dl.ok) {
+    console.error("file download failed", dl.status);
+    await sendMessage(chatId, "Nie udało się pobrać pliku z Telegrama. Spróbuj ponownie.");
+    return;
+  }
+  const bytes = new Uint8Array(await dl.arrayBuffer());
+  if (bytes.byteLength > MAX_TELEGRAM_FILE) {
+    await sendMessage(chatId, "Plik jest za duży (limit Telegrama to 20 MB). Wyślij mniejszy plik.");
+    return;
+  }
+
+  const storagePath = `${userId}/${Date.now()}_${filename}`;
+  const { error: upErr } = await admin.storage
+    .from(BUCKET)
+    .upload(storagePath, bytes, { contentType: mime, upsert: false });
+  if (upErr) {
+    console.error("storage upload failed", upErr.message);
+    await sendMessage(chatId, "Nie udało się zapisać pliku. Spróbuj ponownie.");
+    return;
+  }
+
+  const { error: insErr } = await admin.from("telegram_outbox").insert({
+    user_id: userId,
+    storage_path: storagePath,
+    original_filename: filename,
+    mime,
+  });
+  if (insErr) {
+    console.error("outbox insert failed", insErr.message);
+    await admin.storage.from(BUCKET).remove([storagePath]);
+    await sendMessage(chatId, "Nie udało się zapisać pliku. Spróbuj ponownie.");
+    return;
+  }
+
+  const n = await outboxCount(userId);
+  await sendMessage(chatId, `Zapisano ✅ (${n} plików w skrzynce). Wyślij /wyslij, aby przesłać e-mailem.`);
+}
+
+function toBase64(bytes: Uint8Array) {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+const EMAIL_TEXT = [
+  "Dzień dobry, wysyłam w załączniku umowy o dzieło za bieżący miesiąc",
+  "",
+  "Pozdrawiam, Vadym",
+].join("\n");
+
+async function handleWyslij(chatId: number, userId: string) {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND_API_KEY) {
+    await sendMessage(chatId, "Wysyłka e-mail nie jest skonfigurowana. Skontaktuj się z administratorem.");
+    return;
+  }
+
+  const { data: rows, error } = await admin
+    .from("telegram_outbox")
+    .select("id, storage_path, original_filename")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("outbox read failed", error.message);
+    await sendMessage(chatId, "Błąd odczytu skrzynki. Spróbuj ponownie.");
+    return;
+  }
+  if (!rows || rows.length === 0) {
+    await sendMessage(chatId, "Skrzynka jest pusta.");
+    return;
+  }
+
+  const attachments: Array<{ filename: string; content: string }> = [];
+  let total = 0;
+  for (const row of rows) {
+    const { data: blob, error: dErr } = await admin.storage.from(BUCKET).download(row.storage_path as string);
+    if (dErr || !blob) {
+      console.error("storage download failed", dErr?.message);
+      await sendMessage(chatId, "Nie udało się odczytać jednego z plików. Spróbuj ponownie.");
+      return;
+    }
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    total += bytes.byteLength;
+    if (total > MAX_EMAIL_TOTAL) {
+      await sendMessage(
+        chatId,
+        "Łączny rozmiar plików przekracza limit e-mail (ok. 40 MB). Wyślij je w częściach — użyj /wyslij dla mniejszej partii lub /anuluj i dodaj pliki ponownie.",
+      );
+      return;
+    }
+    attachments.push({ filename: row.original_filename as string, content: toBase64(bytes) });
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Umowy Greencare <umowy@updates.greencareclinic.pl>",
+      to: ["umowy@greencareclinic.pl"],
+      reply_to: "umowy@greencareclinic.pl",
+      subject: "umowy o dzielo greencare clinic",
+      text: EMAIL_TEXT,
+      attachments,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    console.error("resend failed", res.status, body);
+    await sendMessage(chatId, `Nie udało się wysłać e-maila (status ${res.status}). Pliki pozostają w skrzynce.`);
+    return;
+  }
+
+  const n = attachments.length;
+  await clearOutbox(userId);
+  await sendMessage(chatId, `Wysłano ✅ (${n} załączników).`);
+}
+
+async function handleAnuluj(chatId: number, userId: string) {
+  const n = await clearOutbox(userId);
+  await sendMessage(chatId, n === 0 ? "Skrzynka jest pusta." : `Wyczyszczono skrzynkę (usunięto ${n} plików).`);
+}
+
+
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   if (!BOT_TOKEN || !WEBHOOK_SECRET) {
