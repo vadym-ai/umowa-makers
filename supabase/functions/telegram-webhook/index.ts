@@ -571,13 +571,20 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true }));
     }
 
-    if (command === "/umowa") {
+    if (hasFile) {
+      await handleIncomingFile(chatId, link.user_id as string, message);
+    } else if (command === "/umowa") {
       await handleUmowa(chatId, link.user_id as string, args);
+    } else if (command === "/wyslij") {
+      await handleWyslij(chatId, link.user_id as string);
+    } else if (command === "/anuluj") {
+      await handleAnuluj(chatId, link.user_id as string);
     } else if (command === "/pomoc" || command === "/help") {
       await sendMessage(chatId, HELP);
     } else {
       await sendMessage(chatId, `Nieznana komenda.\n\n${HELP}`);
     }
+
 
     return new Response(JSON.stringify({ ok: true }));
   } catch (e) {
