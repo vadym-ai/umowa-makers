@@ -34,7 +34,6 @@ const MAX_EMAIL_TOTAL = 38 * 1024 * 1024;
 const BUCKET = "signed-scans";
 
 
-
 function safeEqual(a: string | null, b: string): boolean {
   if (!a || a.length !== b.length) return false;
   let diff = 0;
