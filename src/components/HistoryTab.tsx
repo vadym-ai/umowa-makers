@@ -50,6 +50,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const [authors, setAuthors] = useState<Record<string, string>>({});
   const [authorFilter, setAuthorFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "archived" | "all">("active");
+  const [typeFilter, setTypeFilter] = useState<"all" | "umowa_o_dzielo" | "zgoda_materialy">("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -96,7 +97,13 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${docKind === "rachunek" ? "RACHUNEK" : "UOD"}-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
+      const prefix =
+        row.contract_type === "zgoda_materialy"
+          ? "ZGODA"
+          : docKind === "rachunek"
+            ? "RACHUNEK"
+            : "UOD";
+      a.download = `${prefix}-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -165,13 +172,14 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
       if (statusFilter === "active" && r.status === "archived") return false;
       if (statusFilter === "archived" && r.status !== "archived") return false;
       if (isAdmin && authorFilter !== "all" && r.created_by !== authorFilter) return false;
+      if (typeFilter !== "all" && (r.contract_type ?? "umowa_o_dzielo") !== typeFilter) return false;
       if (!q) return true;
       return (
         r.number.toLowerCase().includes(q) ||
         (r.data?.contractor?.full_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [rows, query, isAdmin, authorFilter, statusFilter]);
+  }, [rows, query, isAdmin, authorFilter, statusFilter, typeFilter]);
 
 
   const authorOptions = useMemo(
@@ -179,7 +187,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
     [rows]
   );
 
-  const colCount = isAdmin ? 8 : 7;
+  const colCount = isAdmin ? 9 : 8;
 
   return (
     <div className="space-y-6">
@@ -228,6 +236,16 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
             <SelectItem value="all">Wszystkie</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+          <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectValue placeholder="Typ dokumentu" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Wszystkie typy</SelectItem>
+            <SelectItem value="umowa_o_dzielo">Umowa o dzieło</SelectItem>
+            <SelectItem value="zgoda_materialy">Zgoda na materiały</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
 
@@ -236,6 +254,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
           <thead>
             <tr className="border-b text-muted-foreground">
               <th className="text-left font-medium px-4 py-3">Numer</th>
+              <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Typ dokumentu</th>
               <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Data zawarcia</th>
               <th className="text-left font-medium px-4 py-3">Wykonawca</th>
               <th className="text-left font-medium px-4 py-3">Zamawiający</th>
@@ -267,6 +286,9 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                   </span>
                 </td>
 
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {r.contract_type === "zgoda_materialy" ? "Zgoda na materiały" : "Umowa o dzieło"}
+                </td>
                 <td className="px-4 py-3 whitespace-nowrap">{r.data?.startDate ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.contractor?.full_name ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.company?.name ?? "—"}</td>
@@ -298,6 +320,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                         <FileDown className="mr-2 h-4 w-4" />
                         Pobierz PDF (serwer)
                       </DropdownMenuItem>
+                      {r.contract_type !== "zgoda_materialy" && (
                       <DropdownMenuItem
                         onSelect={(e) => {
                           e.preventDefault();
@@ -308,6 +331,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                         <FileDown className="mr-2 h-4 w-4" />
                         Pobierz rachunek (serwer)
                       </DropdownMenuItem>
+                      )}
                       {isAdmin && r.status !== "archived" && (
                         <DropdownMenuItem
                           onSelect={(e) => {

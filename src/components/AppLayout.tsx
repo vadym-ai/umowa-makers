@@ -1,4 +1,4 @@
-import { FileText, Settings, LogOut, History, Users } from "lucide-react";
+import { FileText, Settings, LogOut, History, Users, Video } from "lucide-react";
 import DocGenLogo from "@/components/DocGenLogo";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { roleLabel } from "@/lib/roles";
 
 const baseNav = [
   { to: "/generator/umowa-o-dzielo", label: "Generator Umowy", icon: FileText },
+  { to: "/generator/zgoda-materialy", label: "Zgody", icon: Video },
   { to: "/historia", label: "Historia", icon: History },
   { to: "/dane-stron", label: "Dane Stron", icon: Settings },
 ];

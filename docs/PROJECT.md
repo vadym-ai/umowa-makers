@@ -127,3 +127,51 @@ Tabela stron jest wspólna: `src/components/PartyTable.tsx`.
 Edge function przyjmuje `{ contract_id, document: "umowa" | "rachunek" }`;
 nazwa pliku to `UOD-…pdf` lub `RACHUNEK-…pdf`. W „Historii" dostępna jest
 pozycja „Pobierz rachunek (serwer)".
+
+## Zgoda na wykorzystanie wizerunku i materiałów wideo
+
+Drugi typ dokumentu (`contracts.contract_type = 'zgoda_materialy'`), z własną
+numeracją, własnym generatorem (`/generator/zgoda-materialy`) i własnym PDF-em
+serwerowym.
+
+### Numeracja per typ dokumentu
+
+`numbering_rules` ma dodatkowe kolumny `zgoda_prefix` (domyślnie `Z-`) oraz
+`zgoda_format` (domyślnie `{prefix}{NN}/{MM}/{YY}`).
+
+`contract_counters` zachowuje PK `(org_id, period_key)`, więc klucz jest
+namespace'owany typem dokumentu: dla `umowa` `period_key` pozostaje bez zmian
+(np. `08/26`), dla pozostałych typów jest poprzedzony typem, np. `zgoda:08/26`.
+
+Nowe RPC (atomowy `INSERT … ON CONFLICT … RETURNING`, ta sama kontrola
+członkostwa co wcześniej):
+
+- `public.next_document_number(_org_id, _month, _year, _doc_type)`
+- `public.preview_document_number(_org_id, _month, _year, _doc_type)`
+
+`next_contract_number`, `preview_contract_number` i
+`next_contract_number_for_user` (używane przez bota Telegram) działają jak
+wcześniej — są cienkimi wrapperami nad powyższymi.
+
+### Frontend
+
+- `src/lib/zgoda.ts` — `polishPeriodPhrase` (odmiana „miesiąc/miesiące/miesięcy”,
+  „rok/lata/lat”), `addPeriod`, `representativeLines/Name`, `shortCompanyName`.
+  Testy: `src/test/zgoda.test.ts`.
+- `src/components/ZgodaTab.tsx` + `src/pages/ZgodaPage.tsx` — generator
+  (firma, reprezentant, twórca, miejscowość, data, okres zgody, wynagrodzenie).
+- `src/components/ZgodaPreview.tsx` — podgląd A4 (`.a4-page`).
+- Snapshot zapisywany jest w `contracts.data.zgoda`
+  (`representative`, `periodCount`, `periodUnit`, `paid`, `amount`, `endDate`).
+
+### Renderer serwerowy
+
+`supabase/functions/generate-contract-pdf/renderZgoda.ts` — routing w `index.ts`
+odbywa się po `contract.contract_type`; nazwa pliku to `ZGODA-{numer}.pdf`.
+Ten renderer musi pozostać zgodny z `ZgodaPreview.tsx`. Test w
+`index.test.ts` sprawdza polskie znaki i frazę okresu z § 2.
+
+### Historia
+
+`HistoryTab` ma kolumnę i filtr „Typ dokumentu”; kliknięcie wiersza otwiera
+właściwy generator w trybie edycji.

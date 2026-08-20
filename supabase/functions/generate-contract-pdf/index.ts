@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { renderContractPdf } from "./render.ts";
 import { renderRachunekPdf } from "./renderRachunek.ts";
+import { renderZgodaPdf } from "./renderZgoda.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -62,12 +63,14 @@ Deno.serve(async (req) => {
     const privileged = membership.role === "owner" || membership.role === "admin";
     if (!privileged && contract.created_by !== userId) return json({ error: "Forbidden" }, 403);
 
-    const bytes =
-      document === "rachunek"
+    const isZgoda = contract.contract_type === "zgoda_materialy";
+    const bytes = isZgoda
+      ? await renderZgodaPdf(contract as any)
+      : document === "rachunek"
         ? await renderRachunekPdf(contract as any)
         : await renderContractPdf(contract as any);
     const safeNumber = String(contract.number ?? "umowa").replace(/[^\p{L}\p{N}\-_.]/gu, "-");
-    const prefix = document === "rachunek" ? "RACHUNEK" : "UOD";
+    const prefix = isZgoda ? "ZGODA" : document === "rachunek" ? "RACHUNEK" : "UOD";
 
     return new Response(bytes, {
       status: 200,
