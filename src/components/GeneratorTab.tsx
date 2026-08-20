@@ -200,12 +200,17 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     year: selectedYear,
     city,
     paymentDays,
+    editedHtml: edited.umowa ?? null,
+    editedAt: edited.umowa ? new Date().toISOString() : null,
     rachunek: {
       date: rachunekDate || endDate,
       kupRate,
       bankAccount,
       paymentTerm,
+      editedHtml: edited.rachunek ?? null,
+      editedAt: edited.rachunek ? new Date().toISOString() : null,
     },
+
     company: company
       ? {
           id: company.id,
