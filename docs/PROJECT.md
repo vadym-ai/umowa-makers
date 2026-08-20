@@ -205,3 +205,37 @@ All three A4 previews (Umowa o dzieło, Rachunek, Zgoda na materiały) can be ed
 - **Limitation** — the server renderer (`generate-contract-pdf`, pdf-lib) and the Telegram
   bot build documents from the data snapshot and ignore manual edits. Historia marks such
   rows with an "edytowano ręcznie" badge and asks for confirmation before a server PDF.
+
+## Responsive / mobile
+
+- **Breakpoint rule** — "mobile" means below Tailwind `lg`. At `lg` and up the desktop
+  layout and behaviour are unchanged. Prefer CSS-only responsive classes;
+  `src/hooks/use-mobile.tsx` is used only where real logic (not styling) branches.
+- **`DocumentPreviewFrame`** — the `.a4-page` is a fixed 210 mm ≈ 794 px, so the frame
+  measures its available width with a `ResizeObserver` and applies
+  `transform: scale(min(1, width / 794))` with `transform-origin: top left`. Because a
+  transform does not change the layout box, the frame also sets its own height to
+  `naturalContentHeight * scale` (recomputed on content changes) so no empty gap appears
+  below the document. A corner control toggles "Dopasuj" (default on mobile) and "100%"
+  (real size, frame becomes `overflow-x-auto`); desktop defaults to 100%.
+- **Scale-reset-before-export contract** — every `handleDownloadPdf` (umowa, rachunek,
+  zgoda) wraps the html2pdf call in the frame's imperative `runUnscaled()` handle, which
+  forces scale 1 for the duration of the capture and restores the previous scale
+  afterwards. Verified: a PDF exported at 390 px is byte-identical to the desktop export
+  (A4 595×842 pt, same page count). Manual edit mode also forces 100%, because a scaled
+  `contentEditable` breaks caret placement in mobile Safari.
+- **Bottom tab bar** — below `lg`, `AppLayout` keeps only the logo (and org chip) in the
+  header and renders a fixed bottom bar: Generator, Zgody, Historia, Dane, Więcej. "Więcej"
+  opens a bottom Sheet with the user email, org name + role, "Organizacja" (owner only) and
+  "Wyloguj". The bar is `bg-card border-t` with `padding-bottom: env(safe-area-inset-bottom)`;
+  `--bottom-nav-h` in `index.css` drives both the `<main>` bottom padding and the offset of
+  the sticky mobile action bar (`.mobile-action-bar`) that carries the primary buttons.
+- **Other mobile screens** — Historia renders contract cards instead of the table,
+  Ustawienia stacks party rows and counter controls, Start and Organizacja go single
+  column. Inputs, textareas and select triggers use `text-base` below `md` to stop iOS
+  zoom-on-focus, with `inputMode`/`autoCapitalize` hints on numeric and identifier fields,
+  and toasts move to top-center on mobile so they clear the bottom bar.
+- **PWA** — `public/manifest.webmanifest` (standalone, 192/512/maskable icons, theme
+  `#6366F1`) plus apple-touch-icon and `viewport-fit=cover` in `index.html`. Install to
+  home screen only — deliberately no service worker and no offline caching, since the app
+  is database-driven and a stale cache would cause more harm than good.

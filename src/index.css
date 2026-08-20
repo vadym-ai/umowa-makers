@@ -174,3 +174,18 @@
   text-align: right;
   white-space: nowrap;
 }
+
+/* Mobile shell metrics */
+:root {
+  --bottom-nav-h: 56px;
+}
+
+/* Sticky mobile action bar: sits directly above the bottom tab bar. */
+.mobile-action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+  z-index: 40;
+  padding-bottom: env(safe-area-inset-bottom);
+}

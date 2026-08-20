@@ -8,6 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ContractPreview } from "@/components/ContractPreview";
 import { RachunekPreview } from "@/components/RachunekPreview";
 import { EditableDocument } from "@/components/EditableDocument";
+import {
+  DocumentPreviewFrame,
+  DocumentPreviewFrameHandle,
+} from "@/components/DocumentPreviewFrame";
+import { MobileCollapsibleCard } from "@/components/MobileCollapsibleCard";
 import { sanitizeDocumentHtml } from "@/lib/documentHtml";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -80,6 +85,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     return formatDateForInput(new Date(now.getFullYear(), now.getMonth(), last));
   });
   const previewRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<DocumentPreviewFrameHandle>(null);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -363,18 +369,23 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
       jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
       pagebreak: { mode: ["avoid-all", "css"] },
     };
-    // The preview uses min-height: 297mm + 30mm padding, which overflows A4 and
-    // produces a trailing blank page. Collapse it to natural height for export.
-    const prevMinHeight = el.style.minHeight;
-    el.style.minHeight = "0";
-    const wasEditable = el.getAttribute("contenteditable");
-    if (wasEditable !== null) el.removeAttribute("contenteditable");
-    try {
-      await html2pdf().set(opt).from(el).save();
-    } finally {
-      el.style.minHeight = prevMinHeight;
-      if (wasEditable !== null) el.setAttribute("contenteditable", wasEditable);
-    }
+    const runExport = async () => {
+      // The preview uses min-height: 297mm + 30mm padding, which overflows A4 and
+      // produces a trailing blank page. Collapse it to natural height for export.
+      const prevMinHeight = el.style.minHeight;
+      el.style.minHeight = "0";
+      const wasEditable = el.getAttribute("contenteditable");
+      if (wasEditable !== null) el.removeAttribute("contenteditable");
+      try {
+        await html2pdf().set(opt).from(el).save();
+      } finally {
+        el.style.minHeight = prevMinHeight;
+        if (wasEditable !== null) el.setAttribute("contenteditable", wasEditable);
+      }
+    };
+    // The mobile preview may be transform-scaled; export must run at scale 1.
+    if (frameRef.current) await frameRef.current.runUnscaled(runExport);
+    else await runExport();
   };
 
 
@@ -487,6 +498,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
             <Input
               id="amount"
               type="number"
+              inputMode="decimal"
               value={amountNet}
               onChange={(e) => setAmountNet(Number(e.target.value))}
               min={0}
@@ -553,7 +565,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="text-xs"
+                className="text-base md:text-xs"
               />
             </div>
             <div className="min-w-0">
@@ -566,7 +578,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="text-xs"
+                className="text-base md:text-xs"
               />
             </div>
           </div>
@@ -574,17 +586,18 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
           <div className="grid grid-cols-2 gap-3">
             <div className="min-w-0">
               <Label htmlFor="city" className="text-xs">Miejscowość</Label>
-              <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} className="text-xs" />
+              <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} className="text-base md:text-xs" />
             </div>
             <div className="min-w-0">
               <Label htmlFor="paymentDays" className="text-xs">Termin płatności (dni)</Label>
               <Input
                 id="paymentDays"
                 type="number"
+                inputMode="numeric"
                 min={0}
                 value={paymentDays}
                 onChange={(e) => setPaymentDays(Number(e.target.value))}
-                className="text-xs"
+                className="text-base md:text-xs"
               />
             </div>
           </div>
@@ -615,8 +628,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
         </div>
 
         {docMode === "rachunek" && (
-          <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-4">
-            <h2 className="font-semibold text-sm">Rachunek</h2>
+          <MobileCollapsibleCard title="Rachunek">
             <div>
               <Label htmlFor="rachunekDate" className="text-xs">Data rachunku</Label>
               <Input
@@ -624,7 +636,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
                 type="date"
                 value={rachunekDate || endDate}
                 onChange={(e) => setRachunekDate(e.target.value)}
-                className="text-xs"
+                className="text-base md:text-xs"
               />
             </div>
             <div>
@@ -642,8 +654,10 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
               <Input
                 id="bankAccount"
                 value={bankAccount}
+                autoCapitalize="off"
+                autoCorrect="off"
                 onChange={(e) => setBankAccount(e.target.value)}
-                className="text-xs"
+                className="text-base md:text-xs"
               />
             </div>
             <div>
@@ -652,28 +666,31 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
                 id="paymentTerm"
                 value={paymentTerm}
                 onChange={(e) => setPaymentTerm(e.target.value)}
-                className="text-xs"
+                className="text-base md:text-xs"
               />
             </div>
-          </div>
+          </MobileCollapsibleCard>
         )}
 
-        <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-2 text-sm">
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">Nr umowy:</span>
-            <span className="font-medium text-foreground">{contractNumber}</span>
+        <MobileCollapsibleCard title="Podsumowanie" hideTitleOnDesktop>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Nr umowy:</span>
+              <span className="font-medium text-foreground">{contractNumber}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Data zawarcia:</span>
+              <span className="font-medium text-foreground">{startDateFormatted}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Termin wykonania:</span>
+              <span className="font-medium text-foreground">{endDateFormatted}</span>
+            </div>
           </div>
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">Data zawarcia:</span>
-            <span className="font-medium text-foreground">{startDateFormatted}</span>
-          </div>
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">Termin wykonania:</span>
-            <span className="font-medium text-foreground">{endDateFormatted}</span>
-          </div>
-        </div>
+        </MobileCollapsibleCard>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        {/* Desktop actions — on mobile these live in the sticky bottom bar */}
+        <div className="hidden lg:flex flex-col sm:flex-row gap-3">
           <Button onClick={handleDownloadPdf} className="w-full sm:flex-1 brand-gradient text-white border-0 hover:opacity-90" size="lg">
             <FileDown className="mr-2 h-5 w-5" />
             Pobierz PDF
@@ -693,8 +710,8 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
       </div>
 
       {/* A4 Preview */}
-      <div className="flex-1 min-w-0 overflow-auto bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
-        <div className="shrink-0 space-y-3">
+      <div className="flex-1 min-w-0 overflow-x-hidden bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
+        <div className="w-full lg:w-auto min-w-0 lg:shrink-0 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="inline-flex rounded-lg border bg-card p-1">
               {(["umowa", "rachunek"] as const).map((m) => (
@@ -747,7 +764,8 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
             </div>
           )}
 
-          <div className="shadow-2xl">
+          <DocumentPreviewFrame ref={frameRef} editing={isTextEditing}>
+          <div className="shadow-2xl w-fit">
           <EditableDocument
             editing={isTextEditing}
             html={currentEditedHtml}
@@ -783,6 +801,33 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
           )}
           </EditableDocument>
           </div>
+          </DocumentPreviewFrame>
+
+          {/* Sticky mobile action bar */}
+          <div className="mobile-action-bar lg:hidden border-t bg-card px-3 pt-3">
+            <div className="flex gap-2">
+              <Button
+                onClick={handleDownloadPdf}
+                className="flex-1 brand-gradient text-white border-0 hover:opacity-90"
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                {docMode === "rachunek" ? "Rachunek PDF" : "Pobierz PDF"}
+              </Button>
+              {isEditing ? (
+                <Button onClick={handleSaveChanges} variant="outline" disabled={saving}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Zapisz
+                </Button>
+              ) : (
+                <Button onClick={handleConfirmContract} variant="outline" disabled={saving || !orgId}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Zatwierdź
+                </Button>
+              )}
+            </div>
+          </div>
+          {/* Spacer so the sticky bar never covers the document */}
+          <div className="h-20 lg:hidden" aria-hidden />
         </div>
       </div>
     </div>
