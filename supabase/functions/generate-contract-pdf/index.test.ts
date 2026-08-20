@@ -223,7 +223,7 @@ Deno.test("renders a zgoda PDF with Polish diacritics and the § 2 period phrase
       startDate: "2026-08-20",
       city: "Warszawa",
       company: sampleContract.data.company,
-      contractor: { ...sampleContract.data.contractor, email: "a@b.pl", phone: "+48 500 600 700" },
+      contractor: { ...sampleContract.data.contractor, address: "ul. Źródłowa 5, 00-002 Warszawa", email: "a@b.pl", phone: "+48 500 600 700" },
       zgoda: {
         representative: "Łucja Żółć",
         periodCount: 3,
