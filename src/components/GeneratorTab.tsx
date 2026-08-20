@@ -105,6 +105,8 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     setCompanyId(editingContract.company_id ?? "");
     setContractorId(editingContract.contractor_id ?? "");
     setPreviewNumber(editingContract.number);
+    if (d.city) setCity(d.city);
+    if (typeof d.paymentDays === "number") setPaymentDays(d.paymentDays);
   }, [editingContract]);
 
   const refreshPreviewNumber = useCallback(async () => {
@@ -136,6 +138,11 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
 
   const company = companies.find((c) => c.id === companyId) ?? null;
   const contractor = contractors.find((c) => c.id === contractorId) ?? null;
+
+  // Default place of signing follows the selected company
+  useEffect(() => {
+    if (!isEditing && company?.city) setCity(company.city);
+  }, [company?.city, isEditing]);
 
   const startDateFormatted = formatDatePolish(startDate);
   const endDateFormatted = formatDatePolish(endDate);
