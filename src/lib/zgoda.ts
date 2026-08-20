@@ -45,3 +45,10 @@ export function representativeLines(representative: string | null | undefined): 
     .map((l) => l.trim())
     .filter(Boolean);
 }
+
+/** "Ariadna Group Sp. z o.o." -> "Ariadna Group" — used in the signature caption. */
+export function shortCompanyName(name: string | null | undefined): string {
+  return (name ?? "")
+    .replace(/\s*(sp\.?\s*z\s*o\.?\s*o\.?|spółka z ograniczoną odpowiedzialnością|s\.?a\.?|sp\.?\s*k\.?|sp\.?\s*j\.?)\s*$/i, "")
+    .trim() || (name ?? "");
+}
