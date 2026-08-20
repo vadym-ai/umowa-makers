@@ -172,13 +172,14 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
       if (statusFilter === "active" && r.status === "archived") return false;
       if (statusFilter === "archived" && r.status !== "archived") return false;
       if (isAdmin && authorFilter !== "all" && r.created_by !== authorFilter) return false;
+      if (typeFilter !== "all" && (r.contract_type ?? "umowa_o_dzielo") !== typeFilter) return false;
       if (!q) return true;
       return (
         r.number.toLowerCase().includes(q) ||
         (r.data?.contractor?.full_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [rows, query, isAdmin, authorFilter, statusFilter]);
+  }, [rows, query, isAdmin, authorFilter, statusFilter, typeFilter]);
 
 
   const authorOptions = useMemo(
@@ -186,7 +187,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
     [rows]
   );
 
-  const colCount = isAdmin ? 8 : 7;
+  const colCount = isAdmin ? 9 : 8;
 
   return (
     <div className="space-y-6">
