@@ -290,8 +290,10 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
 
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return;
-    const html2pdf = (await import("html2pdf.js")).default;
     const el = previewRef.current;
+    // Manual edits live in the DOM; capture them right before exporting.
+    if (isTextEditing) setCurrentEditedHtml(el.innerHTML);
+    const html2pdf = (await import("html2pdf.js")).default;
     const opt = {
       margin: 0,
       filename:
@@ -307,12 +309,16 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     // produces a trailing blank page. Collapse it to natural height for export.
     const prevMinHeight = el.style.minHeight;
     el.style.minHeight = "0";
+    const wasEditable = el.getAttribute("contenteditable");
+    if (wasEditable !== null) el.removeAttribute("contenteditable");
     try {
       await html2pdf().set(opt).from(el).save();
     } finally {
       el.style.minHeight = prevMinHeight;
+      if (wasEditable !== null) el.setAttribute("contenteditable", wasEditable);
     }
   };
+
 
 
   const previewCompany: Company | null =
