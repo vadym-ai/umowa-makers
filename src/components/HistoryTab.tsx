@@ -286,6 +286,9 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                   </span>
                 </td>
 
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {r.contract_type === "zgoda_materialy" ? "Zgoda na materiały" : "Umowa o dzieło"}
+                </td>
                 <td className="px-4 py-3 whitespace-nowrap">{r.data?.startDate ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.contractor?.full_name ?? "—"}</td>
                 <td className="px-4 py-3">{r.data?.company?.name ?? "—"}</td>
