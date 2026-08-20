@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
-import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle, Building2, User, Save, X } from "lucide-react";
+import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle, Building2, User, Save, X, Pencil, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContractPreview } from "@/components/ContractPreview";
 import { RachunekPreview } from "@/components/RachunekPreview";
+import { EditableDocument } from "@/components/EditableDocument";
+import { sanitizeDocumentHtml } from "@/lib/documentHtml";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useOrg } from "@/hooks/useOrg";
@@ -16,6 +18,7 @@ import { ContractRow, ContractSnapshot } from "@/lib/contracts";
 import { numberToPolishWords, amountInWordsPl } from "@/lib/numberToWords";
 import { getRandomDescription } from "@/lib/contractDescriptions";
 import { toast } from "@/hooks/use-toast";
+
 
 const months = [
   "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
