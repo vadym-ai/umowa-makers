@@ -101,29 +101,64 @@ Deno.test("renders a contract PDF with Polish diacritics", async () => {
 });
 
 
-/** Extracts plain text drawn into the PDF via the Tj/TJ operators. */
+/**
+ * Decodes the drawn text: builds a glyph-id -> unicode map from the ToUnicode
+ * CMaps, then decodes every hex string of the content streams.
+ */
 async function extractDrawnText(pdf: Uint8Array): Promise<string> {
-  const text = await extractDecodedText(pdf);
-  return text;
+  const latin = new TextDecoder("latin1");
+  const raw = latin.decode(pdf);
+  const chunks: string[] = [];
+  for (const m of raw.matchAll(/(?:^|>)\s*stream\r?\n/g)) {
+    const start = m.index! + m[0].length;
+    let end = raw.indexOf("endstream", start);
+    if (end === -1) continue;
+    while (end > start && (raw[end - 1] === "\n" || raw[end - 1] === "\r")) end--;
+    const inflated = await inflate(pdf.slice(start, end));
+    if (inflated) chunks.push(latin.decode(inflated));
+  }
+
+  const map = new Map<string, string>();
+  for (const chunk of chunks) {
+    for (const block of chunk.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+      for (const pair of block[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
+        map.set(pair[1].toLowerCase(), String.fromCharCode(parseInt(pair[2].slice(0, 4), 16)));
+      }
+    }
+  }
+
+  let out = "";
+  for (const chunk of chunks) {
+    for (const hexStr of chunk.matchAll(/<([0-9a-fA-F]{4,})>\s*Tj/g)) {
+      const hex = hexStr[1].toLowerCase();
+      for (let i = 0; i < hex.length; i += 4) {
+        out += map.get(hex.slice(i, i + 4)) ?? "";
+      }
+      out += " ";
+    }
+  }
+  return out;
 }
 
 Deno.test("renders the new template wording", async () => {
   const bytes = await renderContractPdf(sampleContract as never);
   const text = await extractDrawnText(bytes);
 
-  // Text is drawn with subset fonts, so assert on the ToUnicode-mapped codes by
-  // checking that the PDF is non-trivial and contains the §6 content stream ops.
-  assert(bytes.length > 1000, "PDF should not be empty");
+  const expected = [
+    "Umowa",
+    "dzieło",
+    "WYKONAWCY",
+    "przysługuje",
+    "wynagrodzenie",
+    "2 800,00",
+    "osiemset",
+    "00/100",
+    "netto.",
+    "terminie",
+    "przelewem",
+  ];
+  const missing = expected.filter((w) => !text.includes(w));
+  assertEquals(missing, [], `missing §6 wording in PDF: ${missing.join(" | ")}`);
 
-  const encodeHex = (s: string) =>
-    [...s].map((c) => c.charCodeAt(0).toString(16).padStart(4, "0")).toLowerCase?.() ?? [];
-
-  for (const ch of ["ł", "ż", "ą"]) {
-    const hex = ch.charCodeAt(0).toString(16).padStart(4, "0");
-    assert(
-      text.toLowerCase().includes(`<${hex}>`) || text.includes(ch),
-      `expected character ${ch} in PDF`,
-    );
-  }
-  void encodeHex;
+  assert(!text.includes("RODO"), "RODO block must be removed");
 });
