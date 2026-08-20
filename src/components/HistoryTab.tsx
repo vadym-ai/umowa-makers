@@ -320,6 +320,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                         <FileDown className="mr-2 h-4 w-4" />
                         Pobierz PDF (serwer)
                       </DropdownMenuItem>
+                      {r.contract_type !== "zgoda_materialy" && (
                       <DropdownMenuItem
                         onSelect={(e) => {
                           e.preventDefault();
