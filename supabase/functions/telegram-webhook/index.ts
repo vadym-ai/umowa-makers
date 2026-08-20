@@ -270,18 +270,26 @@ async function handleUmowa(chatId: number, userId: string, args: string) {
     endDate,
     month,
     year,
+    city: (company.city as string | null) ?? "Warszawa",
+    paymentDays: 3,
     company: {
       id: company.id,
       name: company.name,
       address: company.address,
       nip: company.nip,
       representative: company.representative,
+      krs: company.krs ?? null,
+      regon: company.regon ?? null,
+      city: company.city ?? null,
     },
     contractor: {
       id: contractor.id,
       full_name: contractor.full_name,
       address: contractor.address,
       pesel: contractor.pesel,
+      document_number: contractor.document_number ?? null,
+      tax_office: contractor.tax_office ?? null,
+      bank_account: contractor.bank_account ?? null,
     },
   };
 

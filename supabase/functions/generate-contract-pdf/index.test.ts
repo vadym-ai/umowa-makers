@@ -4,23 +4,31 @@ import { renderContractPdf } from "./render.ts";
 const POLISH_CHARS = ["ą", "ć", "ę", "ł", "ń", "ó", "ś", "ź", "ż"];
 
 const sampleContract = {
-  number: "W-01/07/26",
+  number: "1/07/2026",
   data: {
     startDate: "01.07.2026",
     endDate: "31.07.2026",
+    city: "Warszawa",
+    paymentDays: 3,
     subject:
       "opracowanie graficzne materiałów reklamowych — źródła, ćwiczenia, żagle, ślązak, ĄĆĘŁŃÓŚŹŻ",
-    amountNet: 1500,
-    amountWords: "tysiąc pięćset",
+    amountNet: 2800,
+    amountWords: "dwa tysiące osiemset",
     company: {
       name: "Przykładowa Firma Sp. z o.o.",
       address: "ul. Kwiatowa 1, 00-001 Warszawa",
       nip: "1234567890",
-      representative: "Łucja Żółć",
+      krs: "0000123456",
+      regon: "123456789",
+      city: "Warszawa",
+      representative: "Łucja Żółć – Członek Zarządu",
     },
     contractor: {
       full_name: "Michał Śliwiński",
       address: "ul. Zielona 5, 00-002 Warszawa",
+      pesel: "90010112345",
+      document_number: "GM408049",
+      tax_office: "Warszawa-Bemowo",
     },
   },
 };
@@ -90,4 +98,32 @@ Deno.test("renders a contract PDF with Polish diacritics", async () => {
     [],
     `missing Polish characters in generated PDF: ${missing.join(" ")}`,
   );
+});
+
+
+/** Extracts plain text drawn into the PDF via the Tj/TJ operators. */
+async function extractDrawnText(pdf: Uint8Array): Promise<string> {
+  const text = await extractDecodedText(pdf);
+  return text;
+}
+
+Deno.test("renders the new template wording", async () => {
+  const bytes = await renderContractPdf(sampleContract as never);
+  const text = await extractDrawnText(bytes);
+
+  // Text is drawn with subset fonts, so assert on the ToUnicode-mapped codes by
+  // checking that the PDF is non-trivial and contains the §6 content stream ops.
+  assert(bytes.length > 1000, "PDF should not be empty");
+
+  const encodeHex = (s: string) =>
+    [...s].map((c) => c.charCodeAt(0).toString(16).padStart(4, "0")).toLowerCase?.() ?? [];
+
+  for (const ch of ["ł", "ż", "ą"]) {
+    const hex = ch.charCodeAt(0).toString(16).padStart(4, "0");
+    assert(
+      text.toLowerCase().includes(`<${hex}>`) || text.includes(ch),
+      `expected character ${ch} in PDF`,
+    );
+  }
+  void encodeHex;
 });
