@@ -50,6 +50,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const [authors, setAuthors] = useState<Record<string, string>>({});
   const [authorFilter, setAuthorFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "archived" | "all">("active");
+  const [typeFilter, setTypeFilter] = useState<"all" | "umowa_o_dzielo" | "zgoda_materialy">("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -96,7 +97,13 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${docKind === "rachunek" ? "RACHUNEK" : "UOD"}-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
+      const prefix =
+        row.contract_type === "zgoda_materialy"
+          ? "ZGODA"
+          : docKind === "rachunek"
+            ? "RACHUNEK"
+            : "UOD";
+      a.download = `${prefix}-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
