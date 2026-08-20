@@ -11,7 +11,7 @@ export interface ContractDescription {
 const descriptions: ContractDescription[] = [
   // 300–1500
   { text: "przygotowaniu unikalnego zestawu ikon i elementów graficznych interfejsu użytkownika dla platformy webowej", min: 300, max: 1500 },
-  { text: "opracowaniu koncepcji kreatywnej i wykonanie autorskich grafik do newslettera firmowego", min: 300, max: 1500 },
+  { text: "opracowaniu koncepcji kreatywnej i wykonaniu autorskich grafik do newslettera firmowego", min: 300, max: 1500 },
   { text: "wykonaniu autorskiej sesji retuszowej i obróbki fotografii produktowej do katalogu firmowego", min: 300, max: 1500 },
   { text: "wykonaniu autorskiego zestawu grafik na posty w mediach społecznościowych wraz z szablonami edycyjnymi", min: 300, max: 1200 },
   { text: "opracowaniu autorskiego projektu wizytówek i papieru firmowego wraz z przygotowaniem plików do druku", min: 300, max: 1200 },
