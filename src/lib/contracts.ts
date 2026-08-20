@@ -15,6 +15,15 @@ export interface ContractSnapshot {
     bankAccount: string;
     paymentTerm: string;
   };
+  /** Zgoda na wykorzystanie materiałów — document-specific options. */
+  zgoda?: {
+    representative: string;
+    periodCount: number;
+    periodUnit: "months" | "years";
+    paid: boolean;
+    amount: number | null;
+    endDate: string;
+  };
   company: {
     id: string | null;
     name: string;
@@ -33,6 +42,8 @@ export interface ContractSnapshot {
     document_number: string | null;
     tax_office: string | null;
     bank_account: string | null;
+    email?: string | null;
+    phone?: string | null;
   } | null;
 }
 
