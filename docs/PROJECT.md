@@ -175,3 +175,33 @@ Ten renderer musi pozostać zgodny z `ZgodaPreview.tsx`. Test w
 
 `HistoryTab` ma kolumnę i filtr „Typ dokumentu”; kliknięcie wiersza otwiera
 właściwy generator w trybie edycji.
+
+## Manual document editing
+
+All three A4 previews (Umowa o dzieło, Rachunek, Zgoda na materiały) can be edited by hand.
+
+- **Edit mode** — "Edytuj tekst" captures the current preview's `innerHTML` into
+  `editedHtml` state and swaps the preview for `EditableDocument`, which renders its own
+  `.a4-page` div with `contentEditable`. A banner warns that form changes no longer update
+  the document text. "Zakończ edycję" keeps the edits, "Przywróć oryginał" drops them and
+  regenerates the document from the form.
+- **Caret/re-render constraint** — the editable div must mount exactly once per edit
+  session. `EditableDocument` uses a stable `editSessionId` as React `key` and an inner
+  surface that freezes the initial HTML in state, so React never rewrites
+  `dangerouslySetInnerHTML` while typing (which would reset the caret to the start).
+  State is synced from the DOM only on blur and immediately before export/save.
+- **Paste** — `handlePlainTextPaste` (`src/lib/documentHtml.ts`) inserts
+  `text/plain` only, so Word / Google Docs formatting never enters the document.
+- **PDF export** — before `html2pdf` runs, the `contenteditable` attribute is removed
+  (and restored afterwards) alongside the existing `min-height` collapse, so the dashed
+  editing outline never lands in the PDF.
+- **Storage** — `contracts.data.editedHtml` + `data.editedAt` for umowa/zgoda,
+  `contracts.data.rachunek.editedHtml` + `.editedAt` for the rachunek (jsonb, no
+  migration). Umowa and rachunek edits are kept separately and never leak into each other.
+  Opening such a contract from Historia restores the edited wording in edit mode; HTML
+  loaded from the database is sanitised with DOMPurify (`sanitizeDocumentHtml`, allowlist:
+  p, div, span, br, strong, b, em, i, u, h2, h3, table, thead, tbody, tr, th, td, ul, ol,
+  li and the `class`/`style` attributes only).
+- **Limitation** — the server renderer (`generate-contract-pdf`, pdf-lib) and the Telegram
+  bot build documents from the data snapshot and ignore manual edits. Historia marks such
+  rows with an "edytowano ręcznie" badge and asks for confirmation before a server PDF.
