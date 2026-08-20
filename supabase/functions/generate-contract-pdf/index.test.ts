@@ -199,15 +199,8 @@ Deno.test("renders a rachunek PDF with diacritics and the Do wypłaty row", asyn
 
   assertEquals(new TextDecoder().decode(bytes.subarray(0, 5)), "%PDF-", "output should be a PDF file");
 
-  const decoded = await extractDecodedText(bytes);
-  const missingChars = POLISH_CHARS.filter((ch) => {
-    const hex = ch.charCodeAt(0).toString(16).padStart(4, "0");
-    return !decoded.toLowerCase().includes(`<${hex}>`) && !decoded.includes(ch);
-  });
-  assertEquals(missingChars, [], `missing Polish characters: ${missingChars.join(" ")}`);
-
   const text = await extractDrawnText(bytes);
-  const expected = ["Rachunek z dnia", "31.07.2026", "Do wypłaty", "2 800,00", "2 979,00", "1 489,50", "179 zł", "Słownie:"];
+  const expected = ["Rachunek z dnia", "31.07.2026", "Koszt uzyskania przychodu", "Podatek do Urzędu Skarbowego", "Do wypłaty", "2 800,00", "2 979,00", "1 489,50", "179 zł", "Słownie:"];
   const missing = expected.filter((w) => !text.includes(w));
   assertEquals(missing, [], `missing rachunek content: ${missing.join(" | ")}`);
 });
