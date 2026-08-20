@@ -85,18 +85,18 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   };
 
 
-  const handleServerPdf = async (row: ContractRow, document: "umowa" | "rachunek" = "umowa") => {
+  const handleServerPdf = async (row: ContractRow, docKind: "umowa" | "rachunek" = "umowa") => {
     setDownloadingId(row.id);
     try {
       const { data, error } = await supabase.functions.invoke("generate-contract-pdf", {
-        body: { contract_id: row.id, document },
+        body: { contract_id: row.id, document: docKind },
       });
       if (error) throw error;
       const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${document === "rachunek" ? "RACHUNEK" : "UOD"}-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
+      a.download = `${docKind === "rachunek" ? "RACHUNEK" : "UOD"}-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
