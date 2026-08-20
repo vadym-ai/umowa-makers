@@ -56,6 +56,20 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<ContractRow | null>(null);
+  const [serverPdfConfirm, setServerPdfConfirm] = useState<
+    { row: ContractRow; kind: "umowa" | "rachunek" } | null
+  >(null);
+
+  const isManuallyEdited = (r: ContractRow) =>
+    !!(r.data?.editedHtml || r.data?.rachunek?.editedHtml);
+
+  const requestServerPdf = (row: ContractRow, kind: "umowa" | "rachunek" = "umowa") => {
+    if (isManuallyEdited(row)) {
+      setServerPdfConfirm({ row, kind });
+      return;
+    }
+    handleServerPdf(row, kind);
+  };
 
   const archiveContract = async (row: ContractRow) => {
     setBusyId(row.id);
@@ -283,6 +297,9 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                     {r.status === "archived" && (
                       <Badge variant="secondary" className="font-normal">Archiwalna</Badge>
                     )}
+                    {isManuallyEdited(r) && (
+                      <Badge variant="outline" className="font-normal">edytowano ręcznie</Badge>
+                    )}
                   </span>
                 </td>
 
@@ -313,7 +330,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                       <DropdownMenuItem
                         onSelect={(e) => {
                           e.preventDefault();
-                          handleServerPdf(r);
+                          requestServerPdf(r);
                         }}
                         disabled={downloadingId === r.id}
                       >
@@ -324,7 +341,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                       <DropdownMenuItem
                         onSelect={(e) => {
                           e.preventDefault();
-                          handleServerPdf(r, "rachunek");
+                          requestServerPdf(r, "rachunek");
                         }}
                         disabled={downloadingId === r.id}
                       >
@@ -367,6 +384,29 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
           </tbody>
         </table>
       </div>
+
+      <AlertDialog open={!!serverPdfConfirm} onOpenChange={(o) => !o && setServerPdfConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dokument edytowany ręcznie</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ten dokument był edytowany ręcznie. Wersja z serwera zostanie wygenerowana
+              z danych formularza, bez ręcznych poprawek. Kontynuować?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (serverPdfConfirm) handleServerPdf(serverPdfConfirm.row, serverPdfConfirm.kind);
+                setServerPdfConfirm(null);
+              }}
+            >
+              Kontynuuj
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <AlertDialogContent>
