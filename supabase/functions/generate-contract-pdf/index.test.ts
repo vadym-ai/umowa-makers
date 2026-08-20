@@ -4,23 +4,31 @@ import { renderContractPdf } from "./render.ts";
 const POLISH_CHARS = ["ą", "ć", "ę", "ł", "ń", "ó", "ś", "ź", "ż"];
 
 const sampleContract = {
-  number: "W-01/07/26",
+  number: "1/07/2026",
   data: {
     startDate: "01.07.2026",
     endDate: "31.07.2026",
+    city: "Warszawa",
+    paymentDays: 3,
     subject:
       "opracowanie graficzne materiałów reklamowych — źródła, ćwiczenia, żagle, ślązak, ĄĆĘŁŃÓŚŹŻ",
-    amountNet: 1500,
-    amountWords: "tysiąc pięćset",
+    amountNet: 2800,
+    amountWords: "dwa tysiące osiemset",
     company: {
       name: "Przykładowa Firma Sp. z o.o.",
       address: "ul. Kwiatowa 1, 00-001 Warszawa",
       nip: "1234567890",
-      representative: "Łucja Żółć",
+      krs: "0000123456",
+      regon: "123456789",
+      city: "Warszawa",
+      representative: "Łucja Żółć – Członek Zarządu",
     },
     contractor: {
       full_name: "Michał Śliwiński",
       address: "ul. Zielona 5, 00-002 Warszawa",
+      pesel: "90010112345",
+      document_number: "GM408049",
+      tax_office: "Warszawa-Bemowo",
     },
   },
 };
@@ -90,4 +98,86 @@ Deno.test("renders a contract PDF with Polish diacritics", async () => {
     [],
     `missing Polish characters in generated PDF: ${missing.join(" ")}`,
   );
+});
+
+
+/**
+ * Decodes the drawn text: builds a glyph-id -> unicode map from the ToUnicode
+ * CMaps, then decodes every hex string of the content streams.
+ */
+async function extractDrawnText(pdf: Uint8Array): Promise<string> {
+  const latin = new TextDecoder("latin1");
+  const raw = latin.decode(pdf);
+  const chunks: string[] = [];
+  for (const m of raw.matchAll(/(?:^|>)\s*stream\r?\n/g)) {
+    const start = m.index! + m[0].length;
+    let end = raw.indexOf("endstream", start);
+    if (end === -1) continue;
+    while (end > start && (raw[end - 1] === "\n" || raw[end - 1] === "\r")) end--;
+    const inflated = await inflate(pdf.slice(start, end));
+    if (inflated) chunks.push(latin.decode(inflated));
+  }
+
+  // Each embedded font has its own ToUnicode CMap; glyph ids collide between
+  // fonts, so keep the maps separate and pick the best decode per string.
+  const maps: Array<Map<string, string>> = [];
+  for (const chunk of chunks) {
+    for (const block of chunk.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+      const map = new Map<string, string>();
+      for (const pair of block[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
+        map.set(pair[1].toLowerCase(), String.fromCharCode(parseInt(pair[2].slice(0, 4), 16)));
+      }
+      if (map.size) maps.push(map);
+    }
+  }
+
+  const decode = (hex: string, map: Map<string, string>) => {
+    let text = "";
+    let misses = 0;
+    for (let i = 0; i + 4 <= hex.length; i += 4) {
+      const ch = map.get(hex.slice(i, i + 4));
+      if (ch === undefined) misses++;
+      else text += ch;
+    }
+    return { text, misses };
+  };
+
+  let out = "";
+  for (const chunk of chunks) {
+    for (const block of chunk.matchAll(/BT([\s\S]*?)ET/g)) {
+      for (const hexStr of block[1].matchAll(/<([0-9a-fA-F]+)>/g)) {
+        const hex = hexStr[1].toLowerCase();
+        let best = { text: "", misses: Number.MAX_SAFE_INTEGER };
+        for (const map of maps) {
+          const candidate = decode(hex, map);
+          if (candidate.misses < best.misses) best = candidate;
+        }
+        out += best.text + " ";
+      }
+    }
+  }
+  return out.replace(/\s+/g, " ");
+}
+
+Deno.test("renders the new template wording", async () => {
+  const bytes = await renderContractPdf(sampleContract as never);
+  const text = await extractDrawnText(bytes);
+
+  const expected = [
+    "polegające na",
+    "dzieło",
+    "WYKONAWCY",
+    "przysługuje",
+    "wynagrodzenie",
+    "2 800,00",
+    "osiemset",
+    "00/100",
+    "netto.",
+    "terminie",
+    "przelewem",
+  ];
+  const missing = expected.filter((w) => !text.includes(w));
+  assertEquals(missing, [], `missing §6 wording in PDF: ${missing.join(" | ")}`);
+
+  assert(!text.includes("RODO"), "RODO block must be removed");
 });

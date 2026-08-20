@@ -12,7 +12,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { Company, Contractor } from "@/lib/parties";
 import { ContractRow, ContractSnapshot } from "@/lib/contracts";
-import { numberToPolishWords } from "@/lib/numberToWords";
+import { numberToPolishWords, amountInWordsPl } from "@/lib/numberToWords";
 import { getRandomDescription } from "@/lib/contractDescriptions";
 import { toast } from "@/hooks/use-toast";
 
@@ -51,8 +51,11 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [subject, setSubject] = useState("");
+  const [city, setCity] = useState("Warszawa");
+  const [paymentDays, setPaymentDays] = useState(3);
   const [previewNumber, setPreviewNumber] = useState("—");
   const [saving, setSaving] = useState(false);
+
   const [startDate, setStartDate] = useState(() => formatDateForInput(now));
   const [endDate, setEndDate] = useState(() => {
     const last = getLastDay(now.getMonth() + 1, now.getFullYear());
@@ -102,6 +105,8 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     setCompanyId(editingContract.company_id ?? "");
     setContractorId(editingContract.contractor_id ?? "");
     setPreviewNumber(editingContract.number);
+    if (d.city) setCity(d.city);
+    if (typeof d.paymentDays === "number") setPaymentDays(d.paymentDays);
   }, [editingContract]);
 
   const refreshPreviewNumber = useCallback(async () => {
@@ -134,6 +139,11 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
   const company = companies.find((c) => c.id === companyId) ?? null;
   const contractor = contractors.find((c) => c.id === contractorId) ?? null;
 
+  // Default place of signing follows the selected company
+  useEffect(() => {
+    if (!isEditing && company?.city) setCity(company.city);
+  }, [company?.city, isEditing]);
+
   const startDateFormatted = formatDatePolish(startDate);
   const endDateFormatted = formatDatePolish(endDate);
   const amountWords = useMemo(() => numberToPolishWords(amountNet), [amountNet]);
@@ -163,6 +173,8 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     endDate,
     month: selectedMonth,
     year: selectedYear,
+    city,
+    paymentDays,
     company: company
       ? {
           id: company.id,
@@ -170,6 +182,9 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
           address: company.address,
           nip: company.nip,
           representative: company.representative,
+          krs: company.krs ?? null,
+          regon: company.regon ?? null,
+          city: company.city ?? null,
         }
       : editingContract?.data?.company ?? null,
     contractor: contractor
@@ -178,9 +193,13 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
           full_name: contractor.full_name,
           address: contractor.address,
           pesel: contractor.pesel,
+          document_number: contractor.document_number ?? null,
+          tax_office: contractor.tax_office ?? null,
+          bank_account: contractor.bank_account ?? null,
         }
       : editingContract?.data?.contractor ?? null,
   });
+
 
   const handleConfirmContract = async () => {
     if (!orgId) return;
@@ -272,6 +291,9 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
           address: editingContract.data.company.address,
           nip: editingContract.data.company.nip,
           representative: editingContract.data.company.representative,
+          krs: editingContract.data.company.krs ?? null,
+          regon: editingContract.data.company.regon ?? null,
+          city: editingContract.data.company.city ?? null,
         } as Company)
       : null);
 
@@ -284,8 +306,12 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
           full_name: editingContract.data.contractor.full_name,
           address: editingContract.data.contractor.address,
           pesel: editingContract.data.contractor.pesel,
+          document_number: editingContract.data.contractor.document_number ?? null,
+          tax_office: editingContract.data.contractor.tax_office ?? null,
+          bank_account: editingContract.data.contractor.bank_account ?? null,
         } as Contractor)
       : null);
+
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
@@ -369,7 +395,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
             />
             {amountNet > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Słownie: {amountWords} złotych
+                Słownie: {amountInWordsPl(amountNet)}
               </p>
             )}
           </div>
@@ -447,6 +473,24 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="min-w-0">
+              <Label htmlFor="city" className="text-xs">Miejscowość</Label>
+              <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} className="text-xs" />
+            </div>
+            <div className="min-w-0">
+              <Label htmlFor="paymentDays" className="text-xs">Termin płatności (dni)</Label>
+              <Input
+                id="paymentDays"
+                type="number"
+                min={0}
+                value={paymentDays}
+                onChange={(e) => setPaymentDays(Number(e.target.value))}
+                className="text-xs"
+              />
+            </div>
+          </div>
+
           <div>
             <Label htmlFor="subject" className="flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5 text-primary" />
@@ -457,8 +501,9 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               rows={4}
-              placeholder="Opisz przedmiot umowy..."
+              placeholder="np. przygotowaniu pakietu grafik..."
             />
+
             <Button
               variant="outline"
               size="sm"
@@ -511,14 +556,17 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
           <ContractPreview
             ref={previewRef}
             contractNumber={contractNumber}
+            signDate={startDateFormatted}
+            city={city}
             startDate={startDateFormatted}
             endDate={endDateFormatted}
             company={previewCompany}
             contractor={previewContractor}
             subject={subject || "—"}
             amountNet={amountNet}
-            amountWords={amountWords}
+            paymentDays={paymentDays}
           />
+
         </div>
       </div>
     </div>

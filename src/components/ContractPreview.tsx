@@ -1,120 +1,148 @@
 import { forwardRef } from "react";
 import { Company, Contractor } from "@/lib/parties";
+import { formatPln, amountInWordsPl } from "@/lib/numberToWords";
 
 interface ContractPreviewProps {
   contractNumber: string;
+  signDate: string;
+  city: string;
   startDate: string;
   endDate: string;
   company: Company | null;
   contractor: Contractor | null;
   subject: string;
   amountNet: number;
-  amountWords: string;
+  paymentDays: number;
 }
 
+/** Keep this template in sync with supabase/functions/generate-contract-pdf/render.ts */
 export const ContractPreview = forwardRef<HTMLDivElement, ContractPreviewProps>(
-  ({ contractNumber, startDate, endDate, company, contractor, subject, amountNet, amountWords }, ref) => {
+  (
+    { contractNumber, signDate, city, startDate, endDate, company, contractor, subject, amountNet, paymentDays },
+    ref,
+  ) => {
+    const repLines = (company?.representative ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const leftLines: string[] = [];
+    if (company?.name) leftLines.push(`${company.name} reprezentowana przez:`);
+    leftLines.push(...repLines);
+    if (company?.address) leftLines.push(company.address);
+    if (company?.krs) leftLines.push(`KRS: ${company.krs}`);
+    if (company?.regon) leftLines.push(`REGON: ${company.regon}`);
+    if (company?.nip) leftLines.push(`NIP: ${company.nip}`);
+
+    const rightLines: string[] = [];
+    if (contractor?.full_name) rightLines.push(`Imię i Nazwisko: ${contractor.full_name}`);
+    if (contractor?.address) rightLines.push(`Adres: ${contractor.address}`);
+    if (contractor?.pesel) rightLines.push(`PESEL: ${contractor.pesel}`);
+    if (contractor?.document_number) rightLines.push(`Dokument: ${contractor.document_number}`);
+    if (contractor?.tax_office) rightLines.push(`Urząd Skarbowy: ${contractor.tax_office}`);
+
     return (
       <div ref={ref} className="a4-page">
-        <h2>UMOWA O DZIEŁO {contractNumber}</h2>
-        <div className="subtitle">wraz z przeniesieniem praw autorskich</div>
+        <h2>Umowa o dzieło nr {contractNumber}</h2>
+        <div className="subtitle">
+          zawarta w dniu {signDate} w miejscowości: {city}
+        </div>
 
-        <p>
-          Umowa zawarta w dniu {startDate} r., w Warszawie, pomiędzy:
-        </p>
-        <p>
-          <strong>{company?.name || "—"}</strong>, {company?.address || "—"}
-        </p>
-        {company?.nip && <p>NIP: {company.nip}</p>}
-        <p>
-          Reprezentowanym przez p. {company?.representative || "—"} zwanym dalej <strong>Zamawiającym</strong>, a
-        </p>
-        <p>
-          p. <strong>{contractor?.full_name || "—"}</strong>, {contractor?.address || "—"}
-        </p>
-        <p>
-          zwanym dalej <strong>Wykonawcą</strong>, o następującej treści:
-        </p>
+        <table className="party-table">
+          <thead>
+            <tr>
+              <th>ZAMAWIAJĄCY</th>
+              <th>WYKONAWCA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                {leftLines.map((l, i) => (
+                  <div key={i}>{l}</div>
+                ))}
+              </td>
+              <td>
+                {rightLines.map((l, i) => (
+                  <div key={i}>{l}</div>
+                ))}
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
         <div className="section-title">§ 1</div>
         <p>
-          Zamawiający powierza wykonanie, a Wykonawca zobowiązuje się wykonać dzieło polegające na: {subject}
+          WYKONAWCA zobowiązuje się wykonać na zamówienie ZAMAWIAJĄCEGO dzieło, polegające na {subject}.
         </p>
 
         <div className="section-title">§ 2</div>
+        <p>1. WYKONAWCA oświadcza, iż posiada wiedzę, kwalifikacje i umiejętności niezbędne dla wykonania dzieła.</p>
         <p>
-          1. Wykonawca oświadcza, iż posiada wiedzę, kwalifikacje i umiejętności niezbędne dla wykonania dzieła.
+          2. WYKONAWCA oświadcza, że wykona dzieło w sposób staranny, sumienny i prawidłowy, zgodnie ze specyfiką dzieła oraz informacjami i wytycznymi ze strony ZAMAWIAJĄCEGO lub podmiotu trzeciego, na którego rzecz dzieło jest wykonywane.
         </p>
         <p>
-          2. Wykonawca oświadcza, że wykona dzieło w sposób staranny, sumienny i prawidłowy, zgodnie ze specyfiką dzieła oraz informacjami i wytycznymi ze strony Zamawiającego.
-        </p>
-        <p>
-          3. Wykonawca oświadcza, że dzieło będzie wynikiem jego oryginalnej twórczości i nie będzie naruszać praw osób trzecich.
+          3. WYKONAWCA oświadcza, że dzieło będzie wynikiem jego oryginalnej twórczości i nie będzie naruszać praw osób trzecich, w szczególności praw autorskich oraz dóbr osobistych, jak również, iż osobiste i majątkowe prawa autorskie do dzieła nie są ograniczone jakimikolwiek prawami osób trzecich. WYKONAWCA oświadcza ponadto, że dzieło nie było publicznie rozpowszechnione lub udostępnione za pośrednictwem jakichkolwiek środków przekazu lub rozpowszechniania.
         </p>
 
         <div className="section-title">§ 3</div>
         <p>
-          1. W razie stwierdzenia nieprawidłowości oświadczeń z § 2 lub wad prawnych dzieła, Zamawiający będzie uprawniony do odstąpienia od umowy lub żądania zwrotu wypłaconego wynagrodzenia.
+          1. W razie stwierdzenia nieprawidłowości oświadczeń, o których mowa w § 2, lub też wad prawnych dzieła, ZAMAWIAJĄCY będzie uprawniony do odstąpienia od umowy lub żądania zwrotu wypłaconego wynagrodzenia wraz z odsetkami w wysokości ustawowej od dnia zapłaty do dnia zwrotu wynagrodzenia. W każdym wypadku określonym w niniejszym ustępie, ZAMAWIAJĄCY będzie także uprawniony do dochodzenia naprawienia szkody w pełnym zakresie.
         </p>
-        <p>
-          2. Dzieło ma charakter indywidualny i jest przedmiotem prawa autorskiego.
-        </p>
+        <p>2. Dzieło ma charakter indywidualny i jest przedmiotem prawa autorskiego.</p>
 
         <div className="section-title">§ 4</div>
         <p>
-          Termin rozpoczęcia dzieła strony ustaliły na dzień {startDate} r., a wykonania na dzień {endDate} r.
+          Termin rozpoczęcia dzieła strony ustaliły na dzień {startDate}, a wykonania na dzień {endDate}.
         </p>
 
         <div className="section-title">§ 5</div>
         <p>
-          Wykonawcy przysługuje wynagrodzenie za wykonanie dzieła w wysokości {amountNet},00 zł netto (słownie: {amountWords} złotych) i jest płatne z góry.
+          WYKONAWCA ma prawo powierzyć wykonanie dzieła innej osobie, jednakże jest on odpowiedzialny wobec ZAMAWIAJĄCEGO za jej działania, jak za własne.
         </p>
 
         <div className="section-title">§ 6</div>
         <p>
-          1. Wykonawca zobowiązuje się przenieść na Zamawiającego całość autorskich praw majątkowych do dzieła, bez ograniczeń czasowych i terytorialnych.
+          1. WYKONAWCY przysługuje wynagrodzenie za wykonanie dzieła w wysokości {formatPln(amountNet)} (słownie: {amountInWordsPl(amountNet)}) netto.
         </p>
         <p>
-          2. Wykonawca upoważnia Zamawiającego do rozporządzania i korzystania z opracowań dzieła.
-        </p>
-        <p>
-          3. Przejście praw autorskich nastąpi z momentem przekazania dzieła Zamawiającemu.
+          2. Wynagrodzenie WYKONAWCY płatne będzie w terminie {paymentDays} dni od dnia przyjęcia dzieła przez ZAMAWIAJĄCEGO bez zastrzeżeń. Wynagrodzenie płatne będzie na podstawie prawidłowo wystawionego i dostarczonego ZAMAWIAJĄCEMU rachunku, przelewem na konto wskazane w rachunku.
         </p>
 
         <div className="section-title">§ 7</div>
         <p>
-          1. W sprawach nieuregulowanych mają zastosowanie przepisy Kodeksu cywilnego oraz ustawy o prawie autorskim.
+          1. WYKONAWCA zobowiązuje się przenieść na ZAMAWIAJĄCEGO całość praw autorskich do dzieła, bez żadnych ograniczeń czasowych i terytorialnych, na wszelkich znanych w chwili zawarcia niniejszej umowy polach eksploatacji.
         </p>
         <p>
-          2. Spory rozpoznawane będą przez sąd właściwy dla siedziby Zamawiającego.
+          2. WYKONAWCA upoważnia również ZAMAWIAJĄCEGO do rozporządzania oraz korzystania z utworów stanowiących opracowanie dzieła, w zakresie wskazanym w ust. 1 powyżej. Wskazane upoważnienie może być przenoszone na osoby trzecie bez konieczności uzyskiwania odrębnej zgody.
         </p>
+        <p>3. Przejście praw autorskich do dzieła nastąpi z momentem przekazania Dzieła ZAMAWIAJĄCEMU.</p>
 
         <div className="section-title">§ 8</div>
         <p>
-          Umowę sporządzono w 2 jednobrzmiących egzemplarzach.
+          1. W sprawach nieuregulowanych niniejszą umową będą miały zastosowanie przepisy kodeksu cywilnego oraz ustawy o prawie autorskim i prawach pokrewnych.
         </p>
+        <p>
+          2. Wszelkie spory powstałe na gruncie niniejszej umowy rozpoznawane będą przez sąd powszechny właściwy ze względu na siedzibę ZAMAWIAJĄCEGO.
+        </p>
+        <p>3. Zmiany umowy wymagają formy pisemnej pod rygorem nieważności.</p>
+
+        <div className="section-title">§ 9</div>
+        <p>Umowę sporządzono w dwóch jednobrzmiących egzemplarzach, po jednej dla każdej ze stron.</p>
 
         <div className="signatures">
           <div>
             <p>............................................</p>
-            <p>Zamawiający</p>
+            <p>Podpis zamawiającego</p>
           </div>
           <div>
             <p>............................................</p>
-            <p>Wykonawca</p>
+            <p>Podpis wykonawcy</p>
           </div>
-        </div>
-
-        <div className="rodo">
-          <p>
-            Wyrażam zgodę na przetwarzanie moich danych osobowych dla potrzeb niezbędnych do realizacji procesu zatrudnienia zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679 z dnia 27 kwietnia 2016 r. (RODO).
-          </p>
-          <p style={{ marginTop: "16pt" }}>............................................</p>
-          <p>Podpis Wykonawcy</p>
         </div>
       </div>
     );
-  }
+  },
 );
 
 ContractPreview.displayName = "ContractPreview";
