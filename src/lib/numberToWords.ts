@@ -86,3 +86,25 @@ export function amountInWordsPl(amount: number): string {
   const prefix = value < 0 ? 'minus ' : '';
   return `${prefix}${numberToPolishWords(int)} złotych ${rest.toString().padStart(2, '0')}/100`;
 }
+
+function pluralPl(n: number, one: string, few: string, many: string): string {
+  if (n === 1) return one;
+  const lastDigit = n % 10;
+  const lastTwo = n % 100;
+  if (lastTwo >= 12 && lastTwo <= 14) return many;
+  if (lastDigit >= 2 && lastDigit <= 4) return few;
+  return many;
+}
+
+/** "Dwa tysiące osiemset złotych zero groszy" — capitalised, grosze spelled out. */
+export function amountInWordsGroszePl(amount: number): string {
+  const value = Number.isFinite(amount) ? amount : 0;
+  const cents = Math.round(Math.abs(value) * 100);
+  const int = Math.floor(cents / 100);
+  const rest = cents % 100;
+  const zloty = pluralPl(int, 'złoty', 'złote', 'złotych');
+  const grosz = rest === 0 ? 'groszy' : pluralPl(rest, 'grosz', 'grosze', 'groszy');
+  const groszeWords = rest === 0 ? 'zero' : numberToPolishWords(rest);
+  const sentence = `${value < 0 ? 'minus ' : ''}${numberToPolishWords(int)} ${zloty} ${groszeWords} ${grosz}`;
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+}
