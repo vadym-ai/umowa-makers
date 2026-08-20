@@ -156,7 +156,7 @@ async function extractDrawnText(pdf: Uint8Array): Promise<string> {
       }
     }
   }
-  return out;
+  return out.replace(/\s+/g, " ");
 }
 
 Deno.test("renders the new template wording", async () => {
@@ -164,7 +164,7 @@ Deno.test("renders the new template wording", async () => {
   const text = await extractDrawnText(bytes);
 
   const expected = [
-    "Umowa",
+    "polegające na",
     "dzieło",
     "WYKONAWCY",
     "przysługuje",
