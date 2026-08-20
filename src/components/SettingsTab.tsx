@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { Company, Contractor } from "@/lib/parties";
@@ -11,11 +12,20 @@ import { TelegramCard } from "@/components/TelegramCard";
 import { toast } from "@/hooks/use-toast";
 
 
-type CompanyForm = { name: string; address: string; nip: string; representative: string };
-type ContractorForm = { full_name: string; address: string; pesel: string };
+type CompanyForm = {
+  name: string; address: string; nip: string; representative: string;
+  krs: string; regon: string; city: string;
+};
+type ContractorForm = {
+  full_name: string; address: string; pesel: string;
+  document_number: string; tax_office: string; bank_account: string; email: string; phone: string;
+};
 
-const emptyCompany: CompanyForm = { name: "", address: "", nip: "", representative: "" };
-const emptyContractor: ContractorForm = { full_name: "", address: "", pesel: "" };
+const emptyCompany: CompanyForm = { name: "", address: "", nip: "", representative: "", krs: "", regon: "", city: "" };
+const emptyContractor: ContractorForm = {
+  full_name: "", address: "", pesel: "",
+  document_number: "", tax_office: "", bank_account: "", email: "", phone: "",
+};
 
 type CounterRow = { period_key: string; counter: number };
 
@@ -23,7 +33,8 @@ export function SettingsTab() {
   const { orgId, isAdmin, isOwner, loading: orgLoading } = useOrg();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
-  const [prefix, setPrefix] = useState("W-");
+  const [prefix, setPrefix] = useState("");
+  const [numberFormat, setNumberFormat] = useState("{N}/{MM}/{YYYY}");
   const [counters, setCounters] = useState<CounterRow[]>([]);
   const [counterDrafts, setCounterDrafts] = useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -47,7 +58,8 @@ export function SettingsTab() {
     }
     setCompanies((c1.data as Company[]) ?? []);
     setContractors((c2.data as Contractor[]) ?? []);
-    if (n.data?.prefix) setPrefix(n.data.prefix);
+    setPrefix(n.data?.prefix ?? "");
+    if (n.data?.format) setNumberFormat(n.data.format);
     const rows = (cc.data as CounterRow[]) ?? [];
     setCounters(rows);
     setCounterDrafts(Object.fromEntries(rows.map((r) => [r.period_key, String(r.counter)])));
@@ -136,6 +148,16 @@ export function SettingsTab() {
     toast({ title: "Zapisano numerację" });
   };
 
+  const now = new Date();
+  const numberExample = (numberFormat || "{prefix}{NN}/{MM}/{YY}")
+    .replace("{prefix}", prefix ?? "")
+    .replace("{NNN}", "001")
+    .replace("{NN}", "01")
+    .replace("{N}", "1")
+    .replace("{MM}", String(now.getMonth() + 1).padStart(2, "0"))
+    .replace("{YYYY}", String(now.getFullYear()))
+    .replace("{YY}", String(now.getFullYear()).slice(-2));
+
   if (orgLoading) {
     return <p className="text-muted-foreground">Ładowanie…</p>;
   }
@@ -167,7 +189,8 @@ export function SettingsTab() {
                 <p className="text-xs text-muted-foreground truncate">{c.address}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   {c.nip && <>NIP: {c.nip} · </>}
-                  {c.representative}
+                  {c.krs && <>KRS: {c.krs} · </>}
+                  {c.regon && <>REGON: {c.regon}</>}
                 </p>
               </div>
               <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
@@ -188,6 +211,9 @@ export function SettingsTab() {
                     address: c.address ?? "",
                     nip: c.nip ?? "",
                     representative: c.representative ?? "",
+                    krs: c.krs ?? "",
+                    regon: c.regon ?? "",
+                    city: c.city ?? "",
                   });
                 }}
               >
@@ -214,8 +240,23 @@ export function SettingsTab() {
             <Input id="cAddr" value={companyForm.address} onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })} />
           </div>
           <div>
+            <Label htmlFor="cKrs">KRS</Label>
+            <Input id="cKrs" value={companyForm.krs} onChange={(e) => setCompanyForm({ ...companyForm, krs: e.target.value })} />
+          </div>
+          <div>
+            <Label htmlFor="cRegon">REGON</Label>
+            <Input id="cRegon" value={companyForm.regon} onChange={(e) => setCompanyForm({ ...companyForm, regon: e.target.value })} />
+          </div>
+          <div>
+            <Label htmlFor="cCity">Miejscowość</Label>
+            <Input id="cCity" value={companyForm.city} onChange={(e) => setCompanyForm({ ...companyForm, city: e.target.value })} placeholder="Warszawa" />
+          </div>
+          <div className="sm:col-span-2">
             <Label htmlFor="cRep">Reprezentowany przez</Label>
-            <Input id="cRep" value={companyForm.representative} onChange={(e) => setCompanyForm({ ...companyForm, representative: e.target.value })} />
+            <Textarea id="cRep" rows={3} value={companyForm.representative} onChange={(e) => setCompanyForm({ ...companyForm, representative: e.target.value })} />
+            <p className="text-xs text-muted-foreground mt-1">
+              Jedna osoba w jednej linii, np. Vadym Moskalenko – Członek Zarządu
+            </p>
           </div>
           <div className="sm:col-span-2 flex gap-2">
             <Button onClick={saveCompany} className="flex-1 brand-gradient text-white border-0 hover:opacity-90">
@@ -266,6 +307,11 @@ export function SettingsTab() {
                     full_name: c.full_name ?? "",
                     address: c.address ?? "",
                     pesel: c.pesel ?? "",
+                    document_number: c.document_number ?? "",
+                    tax_office: c.tax_office ?? "",
+                    bank_account: c.bank_account ?? "",
+                    email: c.email ?? "",
+                    phone: c.phone ?? "",
                   });
                 }}
               >
@@ -290,6 +336,26 @@ export function SettingsTab() {
           <div className="sm:col-span-2">
             <Label htmlFor="wAddr">Adres zamieszkania</Label>
             <Input id="wAddr" value={contractorForm.address} onChange={(e) => setContractorForm({ ...contractorForm, address: e.target.value })} />
+          </div>
+          <div>
+            <Label htmlFor="wDoc">Dokument (paszport / karta pobytu)</Label>
+            <Input id="wDoc" value={contractorForm.document_number} onChange={(e) => setContractorForm({ ...contractorForm, document_number: e.target.value })} placeholder="GM408049" />
+          </div>
+          <div>
+            <Label htmlFor="wTax">Urząd Skarbowy</Label>
+            <Input id="wTax" value={contractorForm.tax_office} onChange={(e) => setContractorForm({ ...contractorForm, tax_office: e.target.value })} placeholder="Warszawa-Bemowo" />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="wBank">Nr konta bankowego</Label>
+            <Input id="wBank" value={contractorForm.bank_account} onChange={(e) => setContractorForm({ ...contractorForm, bank_account: e.target.value })} placeholder="PL00 0000 0000 0000 0000 0000 0000" />
+          </div>
+          <div>
+            <Label htmlFor="wEmail">E-mail</Label>
+            <Input id="wEmail" type="email" value={contractorForm.email} onChange={(e) => setContractorForm({ ...contractorForm, email: e.target.value })} />
+          </div>
+          <div>
+            <Label htmlFor="wPhone">Telefon</Label>
+            <Input id="wPhone" value={contractorForm.phone} onChange={(e) => setContractorForm({ ...contractorForm, phone: e.target.value })} />
           </div>
           <div className="sm:col-span-2 flex gap-2">
             <Button onClick={saveContractor} className="flex-1 brand-gradient text-white border-0 hover:opacity-90">
@@ -318,9 +384,10 @@ export function SettingsTab() {
             value={prefix}
             disabled={!isAdmin}
             onChange={(e) => setPrefix(e.target.value)}
-            placeholder="W-"
+            placeholder="(bez prefiksu)"
           />
-          <p className="text-xs text-muted-foreground mt-1">Numer umowy: {prefix}01/MM/RR</p>
+          <p className="text-xs text-muted-foreground mt-1">Numer umowy: {numberExample}</p>
+          <p className="text-xs text-muted-foreground">Format: {numberFormat}</p>
           {!isAdmin && (
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
               <Lock className="h-3 w-3" /> Tylko administrator organizacji może zmieniać numerację.
