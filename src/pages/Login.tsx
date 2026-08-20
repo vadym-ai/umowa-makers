@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { FileText, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
+import DocGenLogo from "@/components/DocGenLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,11 +34,11 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-muted/40">
-      <div className="w-full max-w-md bg-card border rounded-xl p-8 space-y-6">
-        <div className="flex items-center gap-2 font-bold text-foreground">
-          <FileText className="h-5 w-5 text-primary" />
-          <span>UOD Generator</span>
+      <div className="w-full max-w-md space-y-6">
+        <div className="flex justify-center">
+          <DocGenLogo size="lg" />
         </div>
+        <div className="bg-card border rounded-xl p-8 space-y-6 brand-shadow">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Zaloguj się</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -67,7 +68,7 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full brand-gradient text-white border-0 hover:opacity-90" disabled={loading}>
             <LogIn className="mr-2 h-4 w-4" />
             {loading ? "Logowanie..." : "Zaloguj się"}
           </Button>
@@ -78,6 +79,7 @@ const Login = () => {
             Zarejestruj się
           </Link>
         </p>
+        </div>
       </div>
     </div>
   );
