@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
-import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle, Building2, User, Save, X } from "lucide-react";
+import { FileDown, Sparkles, Calendar, DollarSign, FileText, CheckCircle, Building2, User, Save, X, Pencil, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContractPreview } from "@/components/ContractPreview";
 import { RachunekPreview } from "@/components/RachunekPreview";
+import { EditableDocument } from "@/components/EditableDocument";
+import { sanitizeDocumentHtml } from "@/lib/documentHtml";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useOrg } from "@/hooks/useOrg";
@@ -16,6 +18,7 @@ import { ContractRow, ContractSnapshot } from "@/lib/contracts";
 import { numberToPolishWords, amountInWordsPl } from "@/lib/numberToWords";
 import { getRandomDescription } from "@/lib/contractDescriptions";
 import { toast } from "@/hooks/use-toast";
+
 
 const months = [
   "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
@@ -61,6 +64,15 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
   const [bankAccount, setBankAccount] = useState("");
   const [paymentTerm, setPaymentTerm] = useState("płatność z góry");
   const [saving, setSaving] = useState(false);
+
+  // Manual document editing — kept per document kind so umowa edits never leak
+  // into the rachunek and vice versa.
+  const [edited, setEdited] = useState<{ umowa: string | null; rachunek: string | null }>({
+    umowa: null,
+    rachunek: null,
+  });
+  const [editingKind, setEditingKind] = useState<"umowa" | "rachunek" | null>(null);
+
 
   const [startDate, setStartDate] = useState(() => formatDateForInput(now));
   const [endDate, setEndDate] = useState(() => {
@@ -113,14 +125,24 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     setPreviewNumber(editingContract.number);
     if (d.city) setCity(d.city);
     if (typeof d.paymentDays === "number") setPaymentDays(d.paymentDays);
-    const r = (d as { rachunek?: { date?: string; kupRate?: number; bankAccount?: string; paymentTerm?: string } }).rachunek;
+    const r = d.rachunek;
     if (r) {
       if (r.date) setRachunekDate(r.date);
       if (r.kupRate === 0.2 || r.kupRate === 0.5) setKupRate(r.kupRate);
       if (typeof r.bankAccount === "string") setBankAccount(r.bankAccount);
       if (r.paymentTerm) setPaymentTerm(r.paymentTerm);
     }
+    // Restore manual edits (HTML from the database must be sanitised).
+    const storedUmowa = d.editedHtml ? sanitizeDocumentHtml(d.editedHtml) : null;
+    const storedRachunek = r?.editedHtml ? sanitizeDocumentHtml(r.editedHtml) : null;
+    setEdited({ umowa: storedUmowa, rachunek: storedRachunek });
+    if (storedUmowa) setEditingKind("umowa");
+    else if (storedRachunek) {
+      setDocMode("rachunek");
+      setEditingKind("rachunek");
+    }
   }, [editingContract]);
+
 
   const refreshPreviewNumber = useCallback(async () => {
     if (!orgId || isEditing) return;
@@ -187,7 +209,39 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     setEndDate(formatDateForInput(new Date(y, selectedMonth - 1, last)));
   };
 
-  const buildSnapshot = (): ContractSnapshot => ({
+  const isTextEditing = editingKind === docMode;
+  const currentEditedHtml = edited[docMode];
+
+  const setCurrentEditedHtml = (html: string) =>
+    setEdited((prev) => ({ ...prev, [docMode]: html }));
+
+  /** Read the live DOM of the editable surface (used before export / save). */
+  const syncEditedFromDom = () => {
+    if (!isTextEditing || !previewRef.current) return edited;
+    const next = { ...edited, [docMode]: previewRef.current.innerHTML };
+    setEdited(next);
+    return next;
+  };
+
+  const startTextEditing = () => {
+    if (previewRef.current && !edited[docMode]) {
+      setEdited((prev) => ({ ...prev, [docMode]: previewRef.current!.innerHTML }));
+    }
+    setEditingKind(docMode);
+  };
+
+  const finishTextEditing = () => {
+    syncEditedFromDom();
+    setEditingKind(null);
+  };
+
+  const resetTextEditing = () => {
+    setEdited((prev) => ({ ...prev, [docMode]: null }));
+    setEditingKind(null);
+  };
+
+  const buildSnapshot = (latest = edited): ContractSnapshot => ({
+
     amountNet,
     amountWords,
     subject,
@@ -197,12 +251,17 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     year: selectedYear,
     city,
     paymentDays,
+    editedHtml: latest.umowa ?? null,
+    editedAt: latest.umowa ? new Date().toISOString() : null,
     rachunek: {
       date: rachunekDate || endDate,
       kupRate,
       bankAccount,
       paymentTerm,
+      editedHtml: latest.rachunek ?? null,
+      editedAt: latest.rachunek ? new Date().toISOString() : null,
     },
+
     company: company
       ? {
           id: company.id,
@@ -231,6 +290,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
 
   const handleConfirmContract = async () => {
     if (!orgId) return;
+    const latest = syncEditedFromDom();
     setSaving(true);
     const { data: num, error } = await supabase.rpc("next_contract_number", {
       _org_id: orgId,
@@ -249,7 +309,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
       number: num as string,
       period_month: selectedMonth,
       period_year: selectedYear,
-      data: buildSnapshot() as unknown as Json,
+      data: buildSnapshot(latest) as unknown as Json,
       created_by: user?.id ?? null,
     });
     setSaving(false);
@@ -264,6 +324,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
 
   const handleSaveChanges = async () => {
     if (!editingContract) return;
+    const latest = syncEditedFromDom();
     setSaving(true);
     const { error } = await supabase
       .from("contracts")
@@ -272,7 +333,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
         contractor_id: contractorId || null,
         period_month: selectedMonth,
         period_year: selectedYear,
-        data: buildSnapshot() as unknown as Json,
+        data: buildSnapshot(latest) as unknown as Json,
       })
       .eq("id", editingContract.id);
     setSaving(false);
@@ -287,8 +348,10 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
 
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return;
-    const html2pdf = (await import("html2pdf.js")).default;
     const el = previewRef.current;
+    // Manual edits live in the DOM; capture them right before exporting.
+    if (isTextEditing) setCurrentEditedHtml(el.innerHTML);
+    const html2pdf = (await import("html2pdf.js")).default;
     const opt = {
       margin: 0,
       filename:
@@ -304,12 +367,16 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     // produces a trailing blank page. Collapse it to natural height for export.
     const prevMinHeight = el.style.minHeight;
     el.style.minHeight = "0";
+    const wasEditable = el.getAttribute("contenteditable");
+    if (wasEditable !== null) el.removeAttribute("contenteditable");
     try {
       await html2pdf().set(opt).from(el).save();
     } finally {
       el.style.minHeight = prevMinHeight;
+      if (wasEditable !== null) el.setAttribute("contenteditable", wasEditable);
     }
   };
+
 
 
   const previewCompany: Company | null =
@@ -628,21 +695,65 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
       {/* A4 Preview */}
       <div className="flex-1 min-w-0 overflow-auto bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
         <div className="shrink-0 space-y-3">
-          <div className="inline-flex rounded-lg border bg-card p-1">
-            {(["umowa", "rachunek"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setDocMode(m)}
-                className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-                  docMode === m ? "brand-gradient text-white" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m === "umowa" ? "Umowa" : "Rachunek"}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex rounded-lg border bg-card p-1">
+              {(["umowa", "rachunek"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setDocMode(m)}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+                    docMode === m ? "brand-gradient text-white" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {m === "umowa" ? "Umowa" : "Rachunek"}
+                </button>
+              ))}
+            </div>
+            {!isTextEditing ? (
+              <Button variant="outline" size="sm" onClick={startTextEditing}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edytuj tekst
+              </Button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={finishTextEditing}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Zakończ edycję
+                </Button>
+                <Button variant="ghost" size="sm" onClick={resetTextEditing}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Przywróć oryginał
+                </Button>
+              </div>
+            )}
           </div>
+
+          {isTextEditing && (
+            <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
+              Tryb edycji ręcznej — zmiany w formularzu nie aktualizują tekstu dokumentu.
+            </div>
+          )}
+          {!isTextEditing && currentEditedHtml && (
+            <div className="rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
+              Ten dokument zawiera ręczne poprawki.{" "}
+              <button type="button" className="underline" onClick={startTextEditing}>
+                Wróć do edycji
+              </button>
+              {" · "}
+              <button type="button" className="underline" onClick={resetTextEditing}>
+                Przywróć oryginał
+              </button>
+            </div>
+          )}
+
           <div className="shadow-2xl">
+          <EditableDocument
+            editing={isTextEditing}
+            html={currentEditedHtml}
+            onHtmlChange={setCurrentEditedHtml}
+            exportRef={previewRef}
+          >
           {docMode === "rachunek" ? (
             <RachunekPreview
               ref={previewRef}
@@ -670,9 +781,11 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
             paymentDays={paymentDays}
           />
           )}
+          </EditableDocument>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
