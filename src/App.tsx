@@ -35,6 +35,7 @@ const App = () => (
             >
               <Route path="/" element={<Start />} />
               <Route path="/generator/umowa-o-dzielo" element={<GeneratorPage />} />
+              <Route path="/generator/zgoda-materialy" element={<ZgodaPage />} />
               <Route path="/historia" element={<HistoryPage />} />
               <Route path="/dane-stron" element={<SettingsPage />} />
               <Route path="/organizacja" element={<Organization />} />

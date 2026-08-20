@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Briefcase, Building2, Hash, CalendarCheck } from "lucide-react";
+import { FileText, Briefcase, Building2, Hash, CalendarCheck, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrg } from "@/hooks/useOrg";
@@ -11,6 +11,13 @@ const contractTypes = [
     title: "Umowa o dzieło",
     description: "Umowa z przeniesieniem praw autorskich",
     icon: FileText,
+    active: true,
+  },
+  {
+    id: "zgoda-materialy",
+    title: "Zgoda na wykorzystanie materiałów",
+    description: "Wizerunek i materiały wideo twórcy",
+    icon: Video,
     active: true,
   },
   {
