@@ -209,7 +209,39 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     setEndDate(formatDateForInput(new Date(y, selectedMonth - 1, last)));
   };
 
-  const buildSnapshot = (): ContractSnapshot => ({
+  const isTextEditing = editingKind === docMode;
+  const currentEditedHtml = edited[docMode];
+
+  const setCurrentEditedHtml = (html: string) =>
+    setEdited((prev) => ({ ...prev, [docMode]: html }));
+
+  /** Read the live DOM of the editable surface (used before export / save). */
+  const syncEditedFromDom = () => {
+    if (!isTextEditing || !previewRef.current) return edited;
+    const next = { ...edited, [docMode]: previewRef.current.innerHTML };
+    setEdited(next);
+    return next;
+  };
+
+  const startTextEditing = () => {
+    if (previewRef.current && !edited[docMode]) {
+      setEdited((prev) => ({ ...prev, [docMode]: previewRef.current!.innerHTML }));
+    }
+    setEditingKind(docMode);
+  };
+
+  const finishTextEditing = () => {
+    syncEditedFromDom();
+    setEditingKind(null);
+  };
+
+  const resetTextEditing = () => {
+    setEdited((prev) => ({ ...prev, [docMode]: null }));
+    setEditingKind(null);
+  };
+
+  const buildSnapshot = (latest = edited): ContractSnapshot => ({
+
     amountNet,
     amountWords,
     subject,
