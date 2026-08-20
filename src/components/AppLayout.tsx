@@ -1,4 +1,5 @@
 import { FileText, Settings, LogOut, History, Users } from "lucide-react";
+import DocGenLogo from "@/components/DocGenLogo";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,10 +32,9 @@ export function AppLayout() {
         <div className="max-w-[1400px] mx-auto px-4 lg:px-6 flex flex-wrap items-center gap-x-4 gap-y-2 py-2 lg:h-14 lg:flex-nowrap lg:gap-8 lg:py-0">
           <Link
             to="/"
-            className="flex items-center gap-2 font-bold text-foreground shrink-0 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity"
           >
-            <FileText className="h-5 w-5 text-primary" />
-            <span>UOD Generator</span>
+            <DocGenLogo />
           </Link>
           {orgName && (
             <span className="hidden xl:flex items-center gap-2 text-sm text-muted-foreground min-w-0">

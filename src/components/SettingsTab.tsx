@@ -218,7 +218,7 @@ export function SettingsTab() {
             <Input id="cRep" value={companyForm.representative} onChange={(e) => setCompanyForm({ ...companyForm, representative: e.target.value })} />
           </div>
           <div className="sm:col-span-2 flex gap-2">
-            <Button onClick={saveCompany} className="flex-1">
+            <Button onClick={saveCompany} className="flex-1 brand-gradient text-white border-0 hover:opacity-90">
               {editingCompany ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
               {editingCompany ? "Zapisz zmiany" : "Dodaj firmę"}
             </Button>
@@ -292,7 +292,7 @@ export function SettingsTab() {
             <Input id="wAddr" value={contractorForm.address} onChange={(e) => setContractorForm({ ...contractorForm, address: e.target.value })} />
           </div>
           <div className="sm:col-span-2 flex gap-2">
-            <Button onClick={saveContractor} className="flex-1">
+            <Button onClick={saveContractor} className="flex-1 brand-gradient text-white border-0 hover:opacity-90">
               {editingContractor ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
               {editingContractor ? "Zapisz zmiany" : "Dodaj wykonawcę"}
             </Button>

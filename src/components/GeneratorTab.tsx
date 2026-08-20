@@ -487,7 +487,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button onClick={handleDownloadPdf} className="w-full sm:flex-1" size="lg">
+          <Button onClick={handleDownloadPdf} className="w-full sm:flex-1 brand-gradient text-white border-0 hover:opacity-90" size="lg">
             <FileDown className="mr-2 h-5 w-5" />
             Pobierz PDF
           </Button>

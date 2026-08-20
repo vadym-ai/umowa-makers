@@ -88,14 +88,14 @@ const Start = () => {
         {orgName && <p className="text-muted-foreground mt-1">{orgName}</p>}
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+          <div className="rounded-xl border bg-card p-4 flex items-center gap-3 brand-shadow">
             <CalendarCheck className="h-5 w-5 text-primary shrink-0" />
             <div>
               <p className="text-xs text-muted-foreground">Umowy w tym miesiącu</p>
               <p className="text-lg font-semibold">{monthCount ?? "—"}</p>
             </div>
           </div>
-          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+          <div className="rounded-xl border bg-card p-4 flex items-center gap-3 brand-shadow">
             <Hash className="h-5 w-5 text-primary shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Ostatni numer umowy</p>
@@ -114,12 +114,14 @@ const Start = () => {
               <div
                 key={type.id}
                 aria-disabled="true"
-                className="relative rounded-xl border bg-card p-6 opacity-60 cursor-not-allowed"
+                className="relative rounded-xl border bg-card p-6 brand-shadow opacity-60 cursor-not-allowed"
               >
                 <span className="absolute top-3 right-3 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   Wkrótce
                 </span>
-                <Icon className="h-8 w-8 text-muted-foreground mb-4" />
+                <div className="h-14 w-14 rounded-xl bg-accent flex items-center justify-center mb-4">
+                  <Icon className="h-7 w-7 text-accent-foreground" />
+                </div>
                 <h3 className="font-semibold text-foreground">{type.title}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{type.description}</p>
               </div>
@@ -129,15 +131,18 @@ const Start = () => {
             <button
               key={type.id}
               onClick={() => navigate(`/generator/${type.id}`)}
-              className="text-left rounded-xl border bg-card p-6 transition-all hover:border-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
+              className="text-left rounded-xl border bg-card p-6 brand-shadow transition-all duration-200 hover:border-primary hover:brand-shadow-lg hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <Icon className="h-8 w-8 text-primary mb-4" />
+              <div className="h-14 w-14 rounded-xl bg-accent flex items-center justify-center mb-4">
+                <Icon className="h-7 w-7 text-accent-foreground" />
+              </div>
               <h3 className="font-semibold text-foreground">{type.title}</h3>
               <p className="text-sm text-muted-foreground mt-1">{type.description}</p>
             </button>
           );
         })}
       </div>
+
     </div>
   );
 };
