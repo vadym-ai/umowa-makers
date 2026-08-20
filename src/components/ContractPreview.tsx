@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { Company, Contractor } from "@/lib/parties";
+import { PartyTable } from "@/components/PartyTable";
 import { formatPln, amountInWordsPl } from "@/lib/numberToWords";
 
 interface ContractPreviewProps {
@@ -21,26 +22,6 @@ export const ContractPreview = forwardRef<HTMLDivElement, ContractPreviewProps>(
     { contractNumber, signDate, city, startDate, endDate, company, contractor, subject, amountNet, paymentDays },
     ref,
   ) => {
-    const repLines = (company?.representative ?? "")
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-
-    const leftLines: string[] = [];
-    if (company?.name) leftLines.push(`${company.name} reprezentowana przez:`);
-    leftLines.push(...repLines);
-    if (company?.address) leftLines.push(company.address);
-    if (company?.krs) leftLines.push(`KRS: ${company.krs}`);
-    if (company?.regon) leftLines.push(`REGON: ${company.regon}`);
-    if (company?.nip) leftLines.push(`NIP: ${company.nip}`);
-
-    const rightLines: string[] = [];
-    if (contractor?.full_name) rightLines.push(`Imię i Nazwisko: ${contractor.full_name}`);
-    if (contractor?.address) rightLines.push(`Adres: ${contractor.address}`);
-    if (contractor?.pesel) rightLines.push(`PESEL: ${contractor.pesel}`);
-    if (contractor?.document_number) rightLines.push(`Dokument: ${contractor.document_number}`);
-    if (contractor?.tax_office) rightLines.push(`Urząd Skarbowy: ${contractor.tax_office}`);
-
     return (
       <div ref={ref} className="a4-page">
         <h2>Umowa o dzieło nr {contractNumber}</h2>
@@ -48,28 +29,8 @@ export const ContractPreview = forwardRef<HTMLDivElement, ContractPreviewProps>(
           zawarta w dniu {signDate} w miejscowości: {city}
         </div>
 
-        <table className="party-table">
-          <thead>
-            <tr>
-              <th>ZAMAWIAJĄCY</th>
-              <th>WYKONAWCA</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                {leftLines.map((l, i) => (
-                  <div key={i}>{l}</div>
-                ))}
-              </td>
-              <td>
-                {rightLines.map((l, i) => (
-                  <div key={i}>{l}</div>
-                ))}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <PartyTable company={company} contractor={contractor} />
+
 
         <div className="section-title">§ 1</div>
         <p>
