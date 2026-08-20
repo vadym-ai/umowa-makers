@@ -62,15 +62,19 @@ Deno.serve(async (req) => {
     const privileged = membership.role === "owner" || membership.role === "admin";
     if (!privileged && contract.created_by !== userId) return json({ error: "Forbidden" }, 403);
 
-    const bytes = await renderContractPdf(contract as any);
+    const bytes =
+      document === "rachunek"
+        ? await renderRachunekPdf(contract as any)
+        : await renderContractPdf(contract as any);
     const safeNumber = String(contract.number ?? "umowa").replace(/[^\p{L}\p{N}\-_.]/gu, "-");
+    const prefix = document === "rachunek" ? "RACHUNEK" : "UOD";
 
     return new Response(bytes, {
       status: 200,
       headers: {
         ...corsHeaders,
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="UOD-${safeNumber}.pdf"`,
+        "Content-Disposition": `attachment; filename="${prefix}-${safeNumber}.pdf"`,
       },
     });
   } catch (e) {
