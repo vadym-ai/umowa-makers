@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { renderContractPdf } from "./render.ts";
+import { renderRachunekPdf } from "./renderRachunek.ts";
 
 const POLISH_CHARS = ["ą", "ć", "ę", "ł", "ń", "ó", "ś", "ź", "ż"];
 
@@ -180,4 +181,36 @@ Deno.test("renders the new template wording", async () => {
   assertEquals(missing, [], `missing §6 wording in PDF: ${missing.join(" | ")}`);
 
   assert(!text.includes("RODO"), "RODO block must be removed");
+});
+
+Deno.test("renders a rachunek PDF with Polish diacritics and correct calculations", async () => {
+  const bytes = await renderRachunekPdf({
+    ...sampleContract,
+    data: {
+      ...sampleContract.data,
+      rachunek: {
+        date: "2026-07-31",
+        kupRate: 0.5,
+        bankAccount: "PL61 1090 1014 0000 0712 1981 2874",
+        paymentTerm: "płatność z góry",
+      },
+    },
+  } as never);
+
+  assertEquals(new TextDecoder().decode(bytes.subarray(0, 5)), "%PDF-", "output should be a PDF file");
+
+  const text = await extractDrawnText(bytes);
+  // Bold strings decode unreliably with the glyph-map heuristic, so assert on regular-font rows.
+  const expected = [
+    "do umowy o dzieło nr 1/07/2026",
+    "Koszt uzyskania przychodu (50%)",
+    "1 489,50 zł",
+    "Podatek do Urzędu Skarbowego",
+    "179 zł",
+    "Słownie: Dwa tysiące osiemset złotych zero groszy",
+    "Termin płatności: płatność z góry",
+    "Podpis wykonawcy",
+  ];
+  const missing = expected.filter((w) => !text.includes(w));
+  assertEquals(missing, [], `missing rachunek content: ${missing.join(" | ")}`);
 });

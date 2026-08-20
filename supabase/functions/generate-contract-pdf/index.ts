@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { renderContractPdf } from "./render.ts";
+import { renderRachunekPdf } from "./renderRachunek.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -21,6 +22,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const contractId = typeof body?.contract_id === "string" ? body.contract_id : null;
     if (!contractId) return json({ error: "contract_id is required" }, 400);
+    const document: "umowa" | "rachunek" = body?.document === "rachunek" ? "rachunek" : "umowa";
+
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
@@ -59,15 +62,19 @@ Deno.serve(async (req) => {
     const privileged = membership.role === "owner" || membership.role === "admin";
     if (!privileged && contract.created_by !== userId) return json({ error: "Forbidden" }, 403);
 
-    const bytes = await renderContractPdf(contract as any);
+    const bytes =
+      document === "rachunek"
+        ? await renderRachunekPdf(contract as any)
+        : await renderContractPdf(contract as any);
     const safeNumber = String(contract.number ?? "umowa").replace(/[^\p{L}\p{N}\-_.]/gu, "-");
+    const prefix = document === "rachunek" ? "RACHUNEK" : "UOD";
 
     return new Response(bytes, {
       status: 200,
       headers: {
         ...corsHeaders,
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="UOD-${safeNumber}.pdf"`,
+        "Content-Disposition": `attachment; filename="${prefix}-${safeNumber}.pdf"`,
       },
     });
   } catch (e) {

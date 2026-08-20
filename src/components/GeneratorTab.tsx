@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContractPreview } from "@/components/ContractPreview";
+import { RachunekPreview } from "@/components/RachunekPreview";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useOrg } from "@/hooks/useOrg";
@@ -54,6 +55,11 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
   const [city, setCity] = useState("Warszawa");
   const [paymentDays, setPaymentDays] = useState(3);
   const [previewNumber, setPreviewNumber] = useState("—");
+  const [docMode, setDocMode] = useState<"umowa" | "rachunek">("umowa");
+  const [rachunekDate, setRachunekDate] = useState("");
+  const [kupRate, setKupRate] = useState<0.5 | 0.2>(0.5);
+  const [bankAccount, setBankAccount] = useState("");
+  const [paymentTerm, setPaymentTerm] = useState("płatność z góry");
   const [saving, setSaving] = useState(false);
 
   const [startDate, setStartDate] = useState(() => formatDateForInput(now));
@@ -107,6 +113,13 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     setPreviewNumber(editingContract.number);
     if (d.city) setCity(d.city);
     if (typeof d.paymentDays === "number") setPaymentDays(d.paymentDays);
+    const r = (d as { rachunek?: { date?: string; kupRate?: number; bankAccount?: string; paymentTerm?: string } }).rachunek;
+    if (r) {
+      if (r.date) setRachunekDate(r.date);
+      if (r.kupRate === 0.2 || r.kupRate === 0.5) setKupRate(r.kupRate);
+      if (typeof r.bankAccount === "string") setBankAccount(r.bankAccount);
+      if (r.paymentTerm) setPaymentTerm(r.paymentTerm);
+    }
   }, [editingContract]);
 
   const refreshPreviewNumber = useCallback(async () => {
@@ -144,6 +157,15 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     if (!isEditing && company?.city) setCity(company.city);
   }, [company?.city, isEditing]);
 
+  // Rachunek defaults follow the contract
+  useEffect(() => {
+    setRachunekDate((prev) => prev || endDate);
+  }, [endDate]);
+
+  useEffect(() => {
+    if (contractor?.bank_account) setBankAccount((prev) => prev || contractor.bank_account || "");
+  }, [contractor?.bank_account]);
+
   const startDateFormatted = formatDatePolish(startDate);
   const endDateFormatted = formatDatePolish(endDate);
   const amountWords = useMemo(() => numberToPolishWords(amountNet), [amountNet]);
@@ -175,6 +197,12 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     year: selectedYear,
     city,
     paymentDays,
+    rachunek: {
+      date: rachunekDate || endDate,
+      kupRate,
+      bankAccount,
+      paymentTerm,
+    },
     company: company
       ? {
           id: company.id,
@@ -263,7 +291,10 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     const el = previewRef.current;
     const opt = {
       margin: 0,
-      filename: `UOD-${contractNumber.replace(/[/\\]/g, "-")}.pdf`,
+      filename:
+        docMode === "rachunek"
+          ? `RACHUNEK-${contractNumber.replace(/[/\\]/g, "-")}.pdf`
+          : `UOD-${contractNumber.replace(/[/\\]/g, "-")}.pdf`,
       image: { type: "jpeg" as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
@@ -516,6 +547,50 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
           </div>
         </div>
 
+        {docMode === "rachunek" && (
+          <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-4">
+            <h2 className="font-semibold text-sm">Rachunek</h2>
+            <div>
+              <Label htmlFor="rachunekDate" className="text-xs">Data rachunku</Label>
+              <Input
+                id="rachunekDate"
+                type="date"
+                value={rachunekDate || endDate}
+                onChange={(e) => setRachunekDate(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Koszty uzyskania przychodu</Label>
+              <Select value={String(kupRate)} onValueChange={(v) => setKupRate(Number(v) as 0.5 | 0.2)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.5">50% (przeniesienie praw autorskich)</SelectItem>
+                  <SelectItem value="0.2">20%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="bankAccount" className="text-xs">Nr konta bankowego</Label>
+              <Input
+                id="bankAccount"
+                value={bankAccount}
+                onChange={(e) => setBankAccount(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+            <div>
+              <Label htmlFor="paymentTerm" className="text-xs">Termin płatności</Label>
+              <Input
+                id="paymentTerm"
+                value={paymentTerm}
+                onChange={(e) => setPaymentTerm(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+          </div>
+        )}
+
         <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-2 text-sm">
           <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Nr umowy:</span>
@@ -552,7 +627,35 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
 
       {/* A4 Preview */}
       <div className="flex-1 min-w-0 overflow-auto bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
-        <div className="shadow-2xl shrink-0">
+        <div className="shrink-0 space-y-3">
+          <div className="inline-flex rounded-lg border bg-card p-1">
+            {(["umowa", "rachunek"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setDocMode(m)}
+                className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+                  docMode === m ? "brand-gradient text-white" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {m === "umowa" ? "Umowa" : "Rachunek"}
+              </button>
+            ))}
+          </div>
+          <div className="shadow-2xl">
+          {docMode === "rachunek" ? (
+            <RachunekPreview
+              ref={previewRef}
+              contractNumber={contractNumber}
+              rachunekDate={formatDatePolish(rachunekDate || endDate)}
+              company={previewCompany}
+              contractor={previewContractor}
+              amountNet={amountNet}
+              kupRate={kupRate}
+              bankAccount={bankAccount || previewContractor?.bank_account || ""}
+              paymentTerm={paymentTerm}
+            />
+          ) : (
           <ContractPreview
             ref={previewRef}
             contractNumber={contractNumber}
@@ -566,7 +669,8 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
             amountNet={amountNet}
             paymentDays={paymentDays}
           />
-
+          )}
+          </div>
         </div>
       </div>
     </div>

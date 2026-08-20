@@ -142,3 +142,25 @@
   text-transform: uppercase;
   text-align: left;
 }
+
+.a4-page .bank-block {
+  text-align: center;
+  margin: 10pt 0;
+}
+
+.a4-page .amount-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10pt 0;
+  font-size: 9pt;
+}
+
+.a4-page .amount-table td {
+  padding: 2pt 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.a4-page .amount-table td.amount {
+  text-align: right;
+  white-space: nowrap;
+}

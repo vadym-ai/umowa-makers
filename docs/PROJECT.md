@@ -97,3 +97,33 @@ znaki diakrytyczne oraz brzmienie § 6.
 Opisy dzieł (`src/lib/contractDescriptions.ts` i
 `supabase/functions/telegram-webhook/descriptions.ts`) są w miejscowniku,
 bo trafiają po zwrocie „polegające na …”; oba pliki pozostają identyczne.
+
+## Rachunek
+
+Rachunek jest **wyprowadzany z umowy** — brak zmian w schemacie. Opcje
+zapisywane są w `contracts.data.rachunek`: `date`, `kupRate` (0.5 / 0.2),
+`bankAccount`, `paymentTerm`.
+
+### Wyliczenia (`src/lib/rachunek.ts`)
+
+Umowa o dzieło bez ZUS: składki 0, podatek 12%, KUP 50% lub 20%.
+Kwota netto (do wypłaty) jest wartością wejściową — brutto dobierane jest
+tak, aby `brutto - round(round(brutto - round2(brutto*kup)) * 0.12)` równało
+się kwocie netto. Podstawa opodatkowania i podatek do US są zaokrąglane do
+pełnych złotych. Testy: `src/test/rachunek.test.ts`.
+
+`amountInWordsGroszePl` (`src/lib/numberToWords.ts`) daje pełne słownie,
+np. `Dwa tysiące osiemset złotych zero groszy`.
+
+### Renderery — również muszą pozostać zgodne
+
+- `src/components/RachunekPreview.tsx` (podgląd A4 / eksport przeglądarkowy)
+- `supabase/functions/generate-contract-pdf/renderRachunek.ts` (PDF serwerowy)
+- `supabase/functions/generate-contract-pdf/rachunekCalc.ts` — kopia
+  `src/lib/rachunek.ts` (funkcje brzegowe nie importują z `src/`).
+
+Tabela stron jest wspólna: `src/components/PartyTable.tsx`.
+
+Edge function przyjmuje `{ contract_id, document: "umowa" | "rachunek" }`;
+nazwa pliku to `UOD-…pdf` lub `RACHUNEK-…pdf`. W „Historii" dostępna jest
+pozycja „Pobierz rachunek (serwer)".
