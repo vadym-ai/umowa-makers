@@ -118,24 +118,41 @@ async function extractDrawnText(pdf: Uint8Array): Promise<string> {
     if (inflated) chunks.push(latin.decode(inflated));
   }
 
-  const map = new Map<string, string>();
+  // Each embedded font has its own ToUnicode CMap; glyph ids collide between
+  // fonts, so keep the maps separate and pick the best decode per string.
+  const maps: Array<Map<string, string>> = [];
   for (const chunk of chunks) {
     for (const block of chunk.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+      const map = new Map<string, string>();
       for (const pair of block[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
         map.set(pair[1].toLowerCase(), String.fromCharCode(parseInt(pair[2].slice(0, 4), 16)));
       }
+      if (map.size) maps.push(map);
     }
   }
+
+  const decode = (hex: string, map: Map<string, string>) => {
+    let text = "";
+    let misses = 0;
+    for (let i = 0; i + 4 <= hex.length; i += 4) {
+      const ch = map.get(hex.slice(i, i + 4));
+      if (ch === undefined) misses++;
+      else text += ch;
+    }
+    return { text, misses };
+  };
 
   let out = "";
   for (const chunk of chunks) {
     for (const block of chunk.matchAll(/BT([\s\S]*?)ET/g)) {
       for (const hexStr of block[1].matchAll(/<([0-9a-fA-F]+)>/g)) {
         const hex = hexStr[1].toLowerCase();
-        for (let i = 0; i + 4 <= hex.length; i += 4) {
-          out += map.get(hex.slice(i, i + 4)) ?? "";
+        let best = { text: "", misses: Number.MAX_SAFE_INTEGER };
+        for (const map of maps) {
+          const candidate = decode(hex, map);
+          if (candidate.misses < best.misses) best = candidate;
         }
-        out += " ";
+        out += best.text + " ";
       }
     }
   }
