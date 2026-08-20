@@ -201,6 +201,7 @@ Deno.test("renders a rachunek PDF with diacritics and the Do wypłaty row", asyn
 
   const text = await extractDrawnText(bytes);
   const expected = ["Rachunek z dnia", "31.07.2026", "Koszt uzyskania przychodu", "Podatek do Urzędu Skarbowego", "Do wypłaty", "2 800,00", "2 979,00", "1 489,50", "179 zł", "Słownie:"];
+  console.log("DRAWN:", text);
   const missing = expected.filter((w) => !text.includes(w));
   assertEquals(missing, [], `missing rachunek content: ${missing.join(" | ")}`);
 });
