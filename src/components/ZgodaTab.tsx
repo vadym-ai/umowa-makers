@@ -10,12 +10,16 @@ import {
   UserCheck,
   AlertTriangle,
   X,
+  Pencil,
+  RotateCcw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ZgodaPreview } from "@/components/ZgodaPreview";
+import { EditableDocument } from "@/components/EditableDocument";
+import { sanitizeDocumentHtml } from "@/lib/documentHtml";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useOrg } from "@/hooks/useOrg";
@@ -70,6 +74,8 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
   const [amount, setAmount] = useState<number>(0);
   const [previewNumber, setPreviewNumber] = useState("—");
   const [saving, setSaving] = useState(false);
+  const [editedHtml, setEditedHtml] = useState<string | null>(null);
+  const [textEditing, setTextEditing] = useState(false);
 
   const isEditing = !!editingContract;
 
@@ -111,6 +117,10 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
       if (z.periodUnit) setPeriodUnit(z.periodUnit);
       setPaid(!!z.paid);
       if (typeof z.amount === "number") setAmount(z.amount);
+    }
+    if (d.editedHtml) {
+      setEditedHtml(sanitizeDocumentHtml(d.editedHtml));
+      setTextEditing(true);
     }
   }, [editingContract]);
 
@@ -201,7 +211,29 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
   const missingContact =
     !!previewContractor && (!previewContractor.email || !previewContractor.phone);
 
-  const buildSnapshot = (): ContractSnapshot => ({
+  const syncEditedFromDom = () => {
+    if (!textEditing || !previewRef.current) return editedHtml;
+    const html = previewRef.current.innerHTML;
+    setEditedHtml(html);
+    return html;
+  };
+
+  const startTextEditing = () => {
+    if (previewRef.current && !editedHtml) setEditedHtml(previewRef.current.innerHTML);
+    setTextEditing(true);
+  };
+
+  const finishTextEditing = () => {
+    syncEditedFromDom();
+    setTextEditing(false);
+  };
+
+  const resetTextEditing = () => {
+    setEditedHtml(null);
+    setTextEditing(false);
+  };
+
+  const buildSnapshot = (latest = editedHtml): ContractSnapshot => ({
     amountNet: paid ? amount : 0,
     amountWords: "",
     subject: "Zgoda na wykorzystanie wizerunku i materiałów wideo",
@@ -211,6 +243,8 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
     year: Number(date.split("-")[0]) || new Date().getFullYear(),
     city,
     paymentDays: 0,
+    editedHtml: latest ?? null,
+    editedAt: latest ? new Date().toISOString() : null,
     zgoda: {
       representative,
       periodCount,
@@ -248,6 +282,7 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
 
   const handleConfirm = async () => {
     if (!orgId) return;
+    const latest = syncEditedFromDom();
     setSaving(true);
     const [y, m] = date.split("-").map(Number);
     const { data: num, error } = await supabase.rpc("next_document_number", {
@@ -269,7 +304,7 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
       number: num as string,
       period_month: m,
       period_year: y,
-      data: buildSnapshot() as unknown as Json,
+      data: buildSnapshot(latest) as unknown as Json,
       created_by: user?.id ?? null,
     });
     setSaving(false);
@@ -283,6 +318,7 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
 
   const handleSaveChanges = async () => {
     if (!editingContract) return;
+    const latest = syncEditedFromDom();
     setSaving(true);
     const [y, m] = date.split("-").map(Number);
     const { error } = await supabase
@@ -292,7 +328,7 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
         contractor_id: contractorId || null,
         period_month: m,
         period_year: y,
-        data: buildSnapshot() as unknown as Json,
+        data: buildSnapshot(latest) as unknown as Json,
       })
       .eq("id", editingContract.id);
     setSaving(false);
@@ -305,8 +341,9 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
 
   const handleDownloadPdf = async () => {
     if (!previewRef.current) return;
-    const html2pdf = (await import("html2pdf.js")).default;
     const el = previewRef.current;
+    if (textEditing) setEditedHtml(el.innerHTML);
+    const html2pdf = (await import("html2pdf.js")).default;
     const opt = {
       margin: 0,
       filename: `ZGODA-${previewNumber.replace(/[/\\]/g, "-")}.pdf`,
@@ -317,10 +354,13 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
     };
     const prevMinHeight = el.style.minHeight;
     el.style.minHeight = "0";
+    const wasEditable = el.getAttribute("contenteditable");
+    if (wasEditable !== null) el.removeAttribute("contenteditable");
     try {
       await html2pdf().set(opt).from(el).save();
     } finally {
       el.style.minHeight = prevMinHeight;
+      if (wasEditable !== null) el.setAttribute("contenteditable", wasEditable);
     }
   };
 
@@ -549,7 +589,50 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
       </div>
 
       <div className="flex-1 min-w-0 overflow-auto bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
-        <div className="shrink-0 shadow-2xl">
+        <div className="shrink-0 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {!textEditing ? (
+              <Button variant="outline" size="sm" onClick={startTextEditing}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edytuj tekst
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={finishTextEditing}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Zakończ edycję
+                </Button>
+                <Button variant="ghost" size="sm" onClick={resetTextEditing}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Przywróć oryginał
+                </Button>
+              </>
+            )}
+          </div>
+          {textEditing && (
+            <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
+              Tryb edycji ręcznej — zmiany w formularzu nie aktualizują tekstu dokumentu.
+            </div>
+          )}
+          {!textEditing && editedHtml && (
+            <div className="rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
+              Ten dokument zawiera ręczne poprawki.{" "}
+              <button type="button" className="underline" onClick={startTextEditing}>
+                Wróć do edycji
+              </button>
+              {" · "}
+              <button type="button" className="underline" onClick={resetTextEditing}>
+                Przywróć oryginał
+              </button>
+            </div>
+          )}
+          <div className="shadow-2xl">
+          <EditableDocument
+            editing={textEditing}
+            html={editedHtml}
+            onHtmlChange={setEditedHtml}
+            exportRef={previewRef}
+          >
           <ZgodaPreview
             ref={previewRef}
             documentNumber={previewNumber}
@@ -563,6 +646,8 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
             paid={paid}
             amount={paid ? amount : null}
           />
+          </EditableDocument>
+          </div>
         </div>
       </div>
     </div>
