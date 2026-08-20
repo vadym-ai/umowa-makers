@@ -116,14 +116,24 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     setPreviewNumber(editingContract.number);
     if (d.city) setCity(d.city);
     if (typeof d.paymentDays === "number") setPaymentDays(d.paymentDays);
-    const r = (d as { rachunek?: { date?: string; kupRate?: number; bankAccount?: string; paymentTerm?: string } }).rachunek;
+    const r = d.rachunek;
     if (r) {
       if (r.date) setRachunekDate(r.date);
       if (r.kupRate === 0.2 || r.kupRate === 0.5) setKupRate(r.kupRate);
       if (typeof r.bankAccount === "string") setBankAccount(r.bankAccount);
       if (r.paymentTerm) setPaymentTerm(r.paymentTerm);
     }
+    // Restore manual edits (HTML from the database must be sanitised).
+    const storedUmowa = d.editedHtml ? sanitizeDocumentHtml(d.editedHtml) : null;
+    const storedRachunek = r?.editedHtml ? sanitizeDocumentHtml(r.editedHtml) : null;
+    setEdited({ umowa: storedUmowa, rachunek: storedRachunek });
+    if (storedUmowa) setEditingKind("umowa");
+    else if (storedRachunek) {
+      setDocMode("rachunek");
+      setEditingKind("rachunek");
+    }
   }, [editingContract]);
+
 
   const refreshPreviewNumber = useCallback(async () => {
     if (!orgId || isEditing) return;
