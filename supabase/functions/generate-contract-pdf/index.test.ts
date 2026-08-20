@@ -129,12 +129,14 @@ async function extractDrawnText(pdf: Uint8Array): Promise<string> {
 
   let out = "";
   for (const chunk of chunks) {
-    for (const hexStr of chunk.matchAll(/<([0-9a-fA-F]{4,})>\s*Tj/g)) {
-      const hex = hexStr[1].toLowerCase();
-      for (let i = 0; i < hex.length; i += 4) {
-        out += map.get(hex.slice(i, i + 4)) ?? "";
+    for (const block of chunk.matchAll(/BT([\s\S]*?)ET/g)) {
+      for (const hexStr of block[1].matchAll(/<([0-9a-fA-F]+)>/g)) {
+        const hex = hexStr[1].toLowerCase();
+        for (let i = 0; i + 4 <= hex.length; i += 4) {
+          out += map.get(hex.slice(i, i + 4)) ?? "";
+        }
+        out += " ";
       }
-      out += " ";
     }
   }
   return out;
