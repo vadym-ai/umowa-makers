@@ -251,15 +251,15 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
     year: selectedYear,
     city,
     paymentDays,
-    editedHtml: edited.umowa ?? null,
-    editedAt: edited.umowa ? new Date().toISOString() : null,
+    editedHtml: latest.umowa ?? null,
+    editedAt: latest.umowa ? new Date().toISOString() : null,
     rachunek: {
       date: rachunekDate || endDate,
       kupRate,
       bankAccount,
       paymentTerm,
-      editedHtml: edited.rachunek ?? null,
-      editedAt: edited.rachunek ? new Date().toISOString() : null,
+      editedHtml: latest.rachunek ?? null,
+      editedAt: latest.rachunek ? new Date().toISOString() : null,
     },
 
     company: company
@@ -290,6 +290,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
 
   const handleConfirmContract = async () => {
     if (!orgId) return;
+    const latest = syncEditedFromDom();
     setSaving(true);
     const { data: num, error } = await supabase.rpc("next_contract_number", {
       _org_id: orgId,
@@ -308,7 +309,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
       number: num as string,
       period_month: selectedMonth,
       period_year: selectedYear,
-      data: buildSnapshot() as unknown as Json,
+      data: buildSnapshot(latest) as unknown as Json,
       created_by: user?.id ?? null,
     });
     setSaving(false);
@@ -323,6 +324,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
 
   const handleSaveChanges = async () => {
     if (!editingContract) return;
+    const latest = syncEditedFromDom();
     setSaving(true);
     const { error } = await supabase
       .from("contracts")
@@ -331,7 +333,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
         contractor_id: contractorId || null,
         period_month: selectedMonth,
         period_year: selectedYear,
-        data: buildSnapshot() as unknown as Json,
+        data: buildSnapshot(latest) as unknown as Json,
       })
       .eq("id", editingContract.id);
     setSaving(false);
