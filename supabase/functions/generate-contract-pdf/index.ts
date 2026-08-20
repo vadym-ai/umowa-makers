@@ -22,6 +22,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const contractId = typeof body?.contract_id === "string" ? body.contract_id : null;
     if (!contractId) return json({ error: "contract_id is required" }, 400);
+    const document: "umowa" | "rachunek" = body?.document === "rachunek" ? "rachunek" : "umowa";
+
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
