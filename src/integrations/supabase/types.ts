@@ -227,6 +227,8 @@ export type Database = {
           org_id: string
           prefix: string
           reset_period: string
+          zgoda_format: string
+          zgoda_prefix: string
         }
         Insert: {
           created_at?: string
@@ -235,6 +237,8 @@ export type Database = {
           org_id: string
           prefix?: string
           reset_period?: string
+          zgoda_format?: string
+          zgoda_prefix?: string
         }
         Update: {
           created_at?: string
@@ -243,6 +247,8 @@ export type Database = {
           org_id?: string
           prefix?: string
           reset_period?: string
+          zgoda_format?: string
+          zgoda_prefix?: string
         }
         Relationships: [
           {
@@ -421,6 +427,15 @@ export type Database = {
         Args: { _month: number; _reset_period: string; _year: number }
         Returns: string
       }
+      document_period_key: {
+        Args: {
+          _doc_type: string
+          _month: number
+          _reset_period: string
+          _year: number
+        }
+        Returns: string
+      }
       format_contract_number: {
         Args: {
           _counter: number
@@ -448,8 +463,26 @@ export type Database = {
         }
         Returns: string
       }
+      next_document_number: {
+        Args: {
+          _doc_type: string
+          _month: number
+          _org_id: string
+          _year: number
+        }
+        Returns: string
+      }
       preview_contract_number: {
         Args: { _month: number; _org_id: string; _year: number }
+        Returns: string
+      }
+      preview_document_number: {
+        Args: {
+          _doc_type: string
+          _month: number
+          _org_id: string
+          _year: number
+        }
         Returns: string
       }
       set_contract_counter: {
