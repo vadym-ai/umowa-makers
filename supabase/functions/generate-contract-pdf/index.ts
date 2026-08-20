@@ -63,12 +63,14 @@ Deno.serve(async (req) => {
     const privileged = membership.role === "owner" || membership.role === "admin";
     if (!privileged && contract.created_by !== userId) return json({ error: "Forbidden" }, 403);
 
-    const bytes =
-      document === "rachunek"
+    const isZgoda = contract.contract_type === "zgoda_materialy";
+    const bytes = isZgoda
+      ? await renderZgodaPdf(contract as any)
+      : document === "rachunek"
         ? await renderRachunekPdf(contract as any)
         : await renderContractPdf(contract as any);
     const safeNumber = String(contract.number ?? "umowa").replace(/[^\p{L}\p{N}\-_.]/gu, "-");
-    const prefix = document === "rachunek" ? "RACHUNEK" : "UOD";
+    const prefix = isZgoda ? "ZGODA" : document === "rachunek" ? "RACHUNEK" : "UOD";
 
     return new Response(bytes, {
       status: 200,
