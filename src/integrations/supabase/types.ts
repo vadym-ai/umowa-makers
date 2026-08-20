@@ -17,32 +17,41 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          city: string | null
           created_at: string
           id: string
           is_default: boolean
+          krs: string | null
           name: string
           nip: string | null
           org_id: string
+          regon: string | null
           representative: string | null
         }
         Insert: {
           address?: string | null
+          city?: string | null
           created_at?: string
           id?: string
           is_default?: boolean
+          krs?: string | null
           name: string
           nip?: string | null
           org_id: string
+          regon?: string | null
           representative?: string | null
         }
         Update: {
           address?: string | null
+          city?: string | null
           created_at?: string
           id?: string
           is_default?: boolean
+          krs?: string | null
           name?: string
           nip?: string | null
           org_id?: string
+          regon?: string | null
           representative?: string | null
         }
         Relationships: [
@@ -90,30 +99,45 @@ export type Database = {
       contractors: {
         Row: {
           address: string | null
+          bank_account: string | null
           created_at: string
+          document_number: string | null
+          email: string | null
           full_name: string
           id: string
           is_default: boolean
           org_id: string
           pesel: string | null
+          phone: string | null
+          tax_office: string | null
         }
         Insert: {
           address?: string | null
+          bank_account?: string | null
           created_at?: string
+          document_number?: string | null
+          email?: string | null
           full_name: string
           id?: string
           is_default?: boolean
           org_id: string
           pesel?: string | null
+          phone?: string | null
+          tax_office?: string | null
         }
         Update: {
           address?: string | null
+          bank_account?: string | null
           created_at?: string
+          document_number?: string | null
+          email?: string | null
           full_name?: string
           id?: string
           is_default?: boolean
           org_id?: string
           pesel?: string | null
+          phone?: string | null
+          tax_office?: string | null
         }
         Relationships: [
           {
