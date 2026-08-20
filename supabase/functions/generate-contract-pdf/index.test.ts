@@ -1,6 +1,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { renderContractPdf } from "./render.ts";
 import { renderRachunekPdf } from "./renderRachunek.ts";
+import { renderZgodaPdf } from "./renderZgoda.ts";
 
 const POLISH_CHARS = ["ą", "ć", "ę", "ł", "ń", "ó", "ś", "ź", "ż"];
 
@@ -213,4 +214,43 @@ Deno.test("renders a rachunek PDF with Polish diacritics and correct calculation
   ];
   const missing = expected.filter((w) => !text.includes(w));
   assertEquals(missing, [], `missing rachunek content: ${missing.join(" | ")}`);
+});
+
+Deno.test("renders a zgoda PDF with Polish diacritics and the § 2 period phrase", async () => {
+  const bytes = await renderZgodaPdf({
+    number: "Z-01/08/26",
+    data: {
+      startDate: "2026-08-20",
+      city: "Warszawa",
+      company: sampleContract.data.company,
+      contractor: { ...sampleContract.data.contractor, email: "a@b.pl", phone: "+48 500 600 700" },
+      zgoda: {
+        representative: "Łucja Żółć",
+        periodCount: 3,
+        periodUnit: "years",
+        paid: false,
+        amount: null,
+        endDate: "2029-08-20",
+      },
+    },
+  } as never);
+
+  assertEquals(new TextDecoder().decode(bytes.subarray(0, 5)), "%PDF-", "output should be a PDF file");
+
+  const decoded = await extractDecodedText(bytes);
+  const missingChars = POLISH_CHARS.filter((ch) => {
+    const hex = ch.charCodeAt(0).toString(16).padStart(4, "0");
+    return !decoded.toLowerCase().includes(`<${hex}>`) && !decoded.includes(ch);
+  });
+  assertEquals(missingChars, [], `missing Polish characters: ${missingChars.join(" ")}`);
+
+  const text = await extractDrawnText(bytes);
+  const expected = [
+    "3 (trzy) lata",
+    "od 20.08.2026 do 20.08.2029",
+    "nieodpłatnie",
+    "Content Creator",
+  ];
+  const missing = expected.filter((w) => !text.includes(w));
+  assertEquals(missing, [], `missing zgoda content: ${missing.join(" | ")}`);
 });
