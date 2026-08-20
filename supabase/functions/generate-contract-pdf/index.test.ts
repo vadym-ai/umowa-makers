@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { renderContractPdf } from "./render.ts";
+import { renderRachunekPdf } from "./renderRachunek.ts";
 
 const POLISH_CHARS = ["ą", "ć", "ę", "ł", "ń", "ó", "ś", "ź", "ż"];
 
@@ -180,4 +181,33 @@ Deno.test("renders the new template wording", async () => {
   assertEquals(missing, [], `missing §6 wording in PDF: ${missing.join(" | ")}`);
 
   assert(!text.includes("RODO"), "RODO block must be removed");
+});
+
+Deno.test("renders a rachunek PDF with diacritics and the Do wypłaty row", async () => {
+  const bytes = await renderRachunekPdf({
+    ...sampleContract,
+    data: {
+      ...sampleContract.data,
+      rachunek: {
+        date: "2026-07-31",
+        kupRate: 0.5,
+        bankAccount: "PL61 1090 1014 0000 0712 1981 2874",
+        paymentTerm: "płatność z góry",
+      },
+    },
+  } as never);
+
+  assertEquals(new TextDecoder().decode(bytes.subarray(0, 5)), "%PDF-", "output should be a PDF file");
+
+  const decoded = await extractDecodedText(bytes);
+  const missingChars = POLISH_CHARS.filter((ch) => {
+    const hex = ch.charCodeAt(0).toString(16).padStart(4, "0");
+    return !decoded.toLowerCase().includes(`<${hex}>`) && !decoded.includes(ch);
+  });
+  assertEquals(missingChars, [], `missing Polish characters: ${missingChars.join(" ")}`);
+
+  const text = await extractDrawnText(bytes);
+  const expected = ["Rachunek z dnia", "31.07.2026", "Do wypłaty", "2 800,00", "2 979,00", "1 489,50", "179 zł", "Słownie:"];
+  const missing = expected.filter((w) => !text.includes(w));
+  assertEquals(missing, [], `missing rachunek content: ${missing.join(" | ")}`);
 });
