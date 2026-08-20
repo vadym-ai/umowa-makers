@@ -331,6 +331,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                         <FileDown className="mr-2 h-4 w-4" />
                         Pobierz rachunek (serwer)
                       </DropdownMenuItem>
+                      )}
                       {isAdmin && r.status !== "archived" && (
                         <DropdownMenuItem
                           onSelect={(e) => {

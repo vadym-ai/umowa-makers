@@ -7,7 +7,12 @@ const HistoryPage = () => {
   return (
     <HistoryTab
       onOpenContract={(contract: ContractRow) =>
-        navigate("/generator/umowa-o-dzielo", { state: { contract } })
+        navigate(
+          contract.contract_type === "zgoda_materialy"
+            ? "/generator/zgoda-materialy"
+            : "/generator/umowa-o-dzielo",
+          { state: { contract } },
+        )
       }
     />
   );
