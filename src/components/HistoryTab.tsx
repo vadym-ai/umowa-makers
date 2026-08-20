@@ -236,6 +236,16 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
             <SelectItem value="all">Wszystkie</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+          <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectValue placeholder="Typ dokumentu" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Wszystkie typy</SelectItem>
+            <SelectItem value="umowa_o_dzielo">Umowa o dzieło</SelectItem>
+            <SelectItem value="zgoda_materialy">Zgoda na materiały</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
 
@@ -244,6 +254,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
           <thead>
             <tr className="border-b text-muted-foreground">
               <th className="text-left font-medium px-4 py-3">Numer</th>
+              <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Typ dokumentu</th>
               <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Data zawarcia</th>
               <th className="text-left font-medium px-4 py-3">Wykonawca</th>
               <th className="text-left font-medium px-4 py-3">Zamawiający</th>
