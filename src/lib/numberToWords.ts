@@ -65,3 +65,24 @@ export function numberToPolishWords(num: number): string {
 
   return parts.join(' ');
 }
+
+/** "2 800,00 zł" — non-breaking-space thousands separator, comma decimals. */
+export function formatPln(amount: number): string {
+  const value = Number.isFinite(amount) ? amount : 0;
+  const negative = value < 0;
+  const cents = Math.round(Math.abs(value) * 100);
+  const int = Math.floor(cents / 100);
+  const rest = cents % 100;
+  const grouped = int.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
+  return `${negative ? '-' : ''}${grouped},${rest.toString().padStart(2, '0')} zł`;
+}
+
+/** "dwa tysiące osiemset złotych 00/100" */
+export function amountInWordsPl(amount: number): string {
+  const value = Number.isFinite(amount) ? amount : 0;
+  const cents = Math.round(Math.abs(value) * 100);
+  const int = Math.floor(cents / 100);
+  const rest = cents % 100;
+  const prefix = value < 0 ? 'minus ' : '';
+  return `${prefix}${numberToPolishWords(int)} złotych ${rest.toString().padStart(2, '0')}/100`;
+}
