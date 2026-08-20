@@ -65,6 +65,15 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
   const [paymentTerm, setPaymentTerm] = useState("płatność z góry");
   const [saving, setSaving] = useState(false);
 
+  // Manual document editing — kept per document kind so umowa edits never leak
+  // into the rachunek and vice versa.
+  const [edited, setEdited] = useState<{ umowa: string | null; rachunek: string | null }>({
+    umowa: null,
+    rachunek: null,
+  });
+  const [editingKind, setEditingKind] = useState<"umowa" | "rachunek" | null>(null);
+
+
   const [startDate, setStartDate] = useState(() => formatDateForInput(now));
   const [endDate, setEndDate] = useState(() => {
     const last = getLastDay(now.getMonth() + 1, now.getFullYear());
