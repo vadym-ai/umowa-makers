@@ -12,7 +12,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { Company, Contractor } from "@/lib/parties";
 import { ContractRow, ContractSnapshot } from "@/lib/contracts";
-import { numberToPolishWords } from "@/lib/numberToWords";
+import { numberToPolishWords, amountInWordsPl } from "@/lib/numberToWords";
 import { getRandomDescription } from "@/lib/contractDescriptions";
 import { toast } from "@/hooks/use-toast";
 
@@ -395,7 +395,7 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
             />
             {amountNet > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Słownie: {amountWords} złotych
+                Słownie: {amountInWordsPl(amountNet)}
               </p>
             )}
           </div>
