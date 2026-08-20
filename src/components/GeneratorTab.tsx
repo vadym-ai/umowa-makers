@@ -631,21 +631,65 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
       {/* A4 Preview */}
       <div className="flex-1 min-w-0 overflow-auto bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
         <div className="shrink-0 space-y-3">
-          <div className="inline-flex rounded-lg border bg-card p-1">
-            {(["umowa", "rachunek"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setDocMode(m)}
-                className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-                  docMode === m ? "brand-gradient text-white" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m === "umowa" ? "Umowa" : "Rachunek"}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex rounded-lg border bg-card p-1">
+              {(["umowa", "rachunek"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setDocMode(m)}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+                    docMode === m ? "brand-gradient text-white" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {m === "umowa" ? "Umowa" : "Rachunek"}
+                </button>
+              ))}
+            </div>
+            {!isTextEditing ? (
+              <Button variant="outline" size="sm" onClick={startTextEditing}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edytuj tekst
+              </Button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={finishTextEditing}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Zakończ edycję
+                </Button>
+                <Button variant="ghost" size="sm" onClick={resetTextEditing}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Przywróć oryginał
+                </Button>
+              </div>
+            )}
           </div>
+
+          {isTextEditing && (
+            <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
+              Tryb edycji ręcznej — zmiany w formularzu nie aktualizują tekstu dokumentu.
+            </div>
+          )}
+          {!isTextEditing && currentEditedHtml && (
+            <div className="rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
+              Ten dokument zawiera ręczne poprawki.{" "}
+              <button type="button" className="underline" onClick={startTextEditing}>
+                Wróć do edycji
+              </button>
+              {" · "}
+              <button type="button" className="underline" onClick={resetTextEditing}>
+                Przywróć oryginał
+              </button>
+            </div>
+          )}
+
           <div className="shadow-2xl">
+          <EditableDocument
+            editing={isTextEditing}
+            html={currentEditedHtml}
+            onHtmlChange={setCurrentEditedHtml}
+            exportRef={previewRef}
+          >
           {docMode === "rachunek" ? (
             <RachunekPreview
               ref={previewRef}
@@ -673,9 +717,11 @@ export function GeneratorTab({ editingContract = null, onExitEdit }: GeneratorTa
             paymentDays={paymentDays}
           />
           )}
+          </EditableDocument>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
