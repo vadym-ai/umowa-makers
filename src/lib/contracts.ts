@@ -8,12 +8,17 @@ export interface ContractSnapshot {
   year: number;
   city: string;
   paymentDays: number;
+  /** Manually edited document HTML (umowa / zgoda), sanitised before rendering. */
+  editedHtml?: string | null;
+  editedAt?: string | null;
   /** Rachunek-only options; the rachunek itself is derived from this snapshot. */
   rachunek?: {
     date: string;
     kupRate: 0.5 | 0.2;
     bankAccount: string;
     paymentTerm: string;
+    editedHtml?: string | null;
+    editedAt?: string | null;
   };
   /** Zgoda na wykorzystanie materiałów — document-specific options. */
   zgoda?: {
@@ -24,6 +29,7 @@ export interface ContractSnapshot {
     amount: number | null;
     endDate: string;
   };
+
   company: {
     id: string | null;
     name: string;

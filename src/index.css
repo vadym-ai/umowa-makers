@@ -90,9 +90,19 @@
   text-align: justify;
 }
 
+.a4-page[contenteditable="true"] {
+  outline: 2px dashed hsl(var(--primary) / 0.35);
+  outline-offset: 6px;
+}
+
+.a4-page[contenteditable="true"]:focus-visible {
+  outline-color: hsl(var(--primary));
+}
+
 .a4-page p {
   margin: 2pt 0;
 }
+
 
 .a4-page h2 {
   text-align: center;
