@@ -142,7 +142,50 @@ const Organization = () => {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border overflow-x-auto">
+      {/* Mobile: stacked member cards */}
+      <div className="space-y-3 lg:hidden">
+        {members.length === 0 && (
+          <p className="text-sm text-muted-foreground">Brak członków.</p>
+        )}
+        {members.map((m) => {
+          const isSelf = m.user_id === user?.id;
+          return (
+            <div key={m.user_id} className="bg-card rounded-xl border p-4 space-y-3">
+              <div>
+                <p className="font-medium text-foreground break-words">{m.full_name ?? "—"}</p>
+                <p className="text-sm text-muted-foreground break-all">{m.email ?? "—"}</p>
+              </div>
+              {isSelf || m.role === "owner" ? (
+                <span className="inline-block rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs font-medium">
+                  {roleLabel(m.role)}
+                </span>
+              ) : (
+                <div className="space-y-2">
+                  <Select value={m.role} onValueChange={(v) => changeRole(m.user_id, v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Administrator</SelectItem>
+                      <SelectItem value="standard">Standard</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => removeMember(m.user_id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                    Usuń z organizacji
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="bg-card rounded-xl border overflow-x-auto hidden lg:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-muted-foreground">

@@ -203,6 +203,69 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
 
   const colCount = isAdmin ? 9 : 8;
 
+  const renderRowMenu = (r: ContractRow) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-10 w-10 lg:h-8 lg:w-8" aria-label="Akcje umowy">
+          {downloadingId === r.id || busyId === r.id ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <MoreHorizontal className="h-4 w-4" />
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            requestServerPdf(r);
+          }}
+          disabled={downloadingId === r.id}
+        >
+          <FileDown className="mr-2 h-4 w-4" />
+          Pobierz PDF (serwer)
+        </DropdownMenuItem>
+        {r.contract_type !== "zgoda_materialy" && (
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              requestServerPdf(r, "rachunek");
+            }}
+            disabled={downloadingId === r.id}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Pobierz rachunek (serwer)
+          </DropdownMenuItem>
+        )}
+        {isAdmin && r.status !== "archived" && (
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              archiveContract(r);
+            }}
+            disabled={busyId === r.id}
+          >
+            <Archive className="mr-2 h-4 w-4" />
+            Archiwizuj
+          </DropdownMenuItem>
+        )}
+        {isAdmin && (
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onSelect={(e) => {
+              e.preventDefault();
+              setToDelete(r);
+            }}
+            disabled={busyId === r.id}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Usuń
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -215,8 +278,8 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative w-full max-w-sm">
+      <div className="flex flex-col lg:flex-row gap-3">
+        <div className="relative w-full lg:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
@@ -227,7 +290,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
         </div>
         {isAdmin && (
           <Select value={authorFilter} onValueChange={setAuthorFilter}>
-            <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectTrigger className="w-full lg:w-[220px]">
               <SelectValue placeholder="Autor" />
             </SelectTrigger>
             <SelectContent>
@@ -241,7 +304,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
           </Select>
         )}
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger className="w-full lg:w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -251,7 +314,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
-          <SelectTrigger className="w-full sm:w-[220px]">
+          <SelectTrigger className="w-full lg:w-[220px]">
             <SelectValue placeholder="Typ dokumentu" />
           </SelectTrigger>
           <SelectContent>
@@ -262,8 +325,60 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
         </Select>
       </div>
 
+      {/* Mobile: card list */}
+      <div className="space-y-3 lg:hidden">
+        {loading && <p className="text-muted-foreground text-sm">Wczytywanie…</p>}
+        {!loading && filtered.length === 0 && (
+          <p className="text-muted-foreground text-sm">Brak umów.</p>
+        )}
+        {filtered.map((r) => (
+          <div
+            key={r.id}
+            onClick={() => onOpenContract(r)}
+            className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-foreground break-words">{r.number}</p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  <Badge variant="secondary" className="font-normal">
+                    {r.contract_type === "zgoda_materialy" ? "Zgoda na materiały" : "Umowa o dzieło"}
+                  </Badge>
+                  {r.status === "archived" && (
+                    <Badge variant="secondary" className="font-normal">Archiwalna</Badge>
+                  )}
+                  {isManuallyEdited(r) && (
+                    <Badge variant="outline" className="font-normal">edytowano ręcznie</Badge>
+                  )}
+                </div>
+              </div>
+              <div onClick={(e) => e.stopPropagation()}>{renderRowMenu(r)}</div>
+            </div>
+            <dl className="text-sm space-y-1">
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted-foreground">Wykonawca</dt>
+                <dd className="text-right">{r.data?.contractor?.full_name ?? "—"}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted-foreground">Kwota</dt>
+                <dd className="text-right">{formatPln(r.data?.amountNet ?? 0)}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted-foreground">Data zawarcia</dt>
+                <dd className="text-right">{r.data?.startDate ?? "—"}</dd>
+              </div>
+              {isAdmin && (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Autor</dt>
+                  <dd className="text-right">{(r.created_by && authors[r.created_by]) || "—"}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        ))}
+      </div>
 
-      <div className="bg-card rounded-xl border overflow-x-auto">
+      <div className="bg-card rounded-xl border overflow-x-auto hidden lg:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-muted-foreground">
@@ -315,68 +430,7 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                 <td className="px-4 py-3 text-right whitespace-nowrap">{formatPln(r.data?.amountNet ?? 0)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{formatDate(r.created_at)}</td>
                 <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Akcje umowy">
-                        {downloadingId === r.id || busyId === r.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <MoreHorizontal className="h-4 w-4" />
-                        )}
-                      </Button>
-
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          requestServerPdf(r);
-                        }}
-                        disabled={downloadingId === r.id}
-                      >
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Pobierz PDF (serwer)
-                      </DropdownMenuItem>
-                      {r.contract_type !== "zgoda_materialy" && (
-                      <DropdownMenuItem
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          requestServerPdf(r, "rachunek");
-                        }}
-                        disabled={downloadingId === r.id}
-                      >
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Pobierz rachunek (serwer)
-                      </DropdownMenuItem>
-                      )}
-                      {isAdmin && r.status !== "archived" && (
-                        <DropdownMenuItem
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            archiveContract(r);
-                          }}
-                          disabled={busyId === r.id}
-                        >
-                          <Archive className="mr-2 h-4 w-4" />
-                          Archiwizuj
-                        </DropdownMenuItem>
-                      )}
-                      {isAdmin && (
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            setToDelete(r);
-                          }}
-                          disabled={busyId === r.id}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Usuń
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-
-                  </DropdownMenu>
+                  {renderRowMenu(r)}
                 </td>
               </tr>
             ))}

@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DocumentPreviewFrame,
+  DocumentPreviewFrameHandle,
+} from "@/components/DocumentPreviewFrame";
+import { MobileCollapsibleCard } from "@/components/MobileCollapsibleCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ZgodaPreview } from "@/components/ZgodaPreview";
@@ -60,6 +65,7 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
   const { orgId } = useOrg();
   const { user } = useAuth();
   const previewRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<DocumentPreviewFrameHandle>(null);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -352,16 +358,21 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
       jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
       pagebreak: { mode: ["avoid-all", "css"] },
     };
-    const prevMinHeight = el.style.minHeight;
-    el.style.minHeight = "0";
-    const wasEditable = el.getAttribute("contenteditable");
-    if (wasEditable !== null) el.removeAttribute("contenteditable");
-    try {
-      await html2pdf().set(opt).from(el).save();
-    } finally {
-      el.style.minHeight = prevMinHeight;
-      if (wasEditable !== null) el.setAttribute("contenteditable", wasEditable);
-    }
+    const runExport = async () => {
+      const prevMinHeight = el.style.minHeight;
+      el.style.minHeight = "0";
+      const wasEditable = el.getAttribute("contenteditable");
+      if (wasEditable !== null) el.removeAttribute("contenteditable");
+      try {
+        await html2pdf().set(opt).from(el).save();
+      } finally {
+        el.style.minHeight = prevMinHeight;
+        if (wasEditable !== null) el.setAttribute("contenteditable", wasEditable);
+      }
+    };
+    // Export must run unscaled — the mobile preview may be transform-scaled.
+    if (frameRef.current) await frameRef.current.runUnscaled(runExport);
+    else await runExport();
   };
 
   return (
@@ -494,6 +505,7 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
               <Input
                 id="zgoda-period"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 value={periodCount}
                 onChange={(e) => setPeriodCount(Math.max(1, Number(e.target.value) || 1))}
@@ -541,6 +553,7 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
                 <Input
                   id="zgoda-amount"
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
@@ -550,22 +563,24 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
           </div>
         </div>
 
-        <div className="bg-card rounded-xl border p-4 lg:p-5 space-y-2 text-sm">
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">Nr dokumentu:</span>
-            <span className="font-medium text-foreground">{previewNumber}</span>
+        <MobileCollapsibleCard title="Podsumowanie" hideTitleOnDesktop>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Nr dokumentu:</span>
+              <span className="font-medium text-foreground">{previewNumber}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Data:</span>
+              <span className="font-medium text-foreground">{dateFormatted}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Obowiązuje do:</span>
+              <span className="font-medium text-foreground">{endDateFormatted}</span>
+            </div>
           </div>
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">Data:</span>
-            <span className="font-medium text-foreground">{dateFormatted}</span>
-          </div>
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">Obowiązuje do:</span>
-            <span className="font-medium text-foreground">{endDateFormatted}</span>
-          </div>
-        </div>
+        </MobileCollapsibleCard>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="hidden lg:flex flex-col sm:flex-row gap-3">
           <Button
             onClick={handleDownloadPdf}
             className="w-full sm:flex-1 brand-gradient text-white border-0 hover:opacity-90"
@@ -588,8 +603,8 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
         </div>
       </div>
 
-      <div className="flex-1 min-w-0 overflow-auto bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
-        <div className="shrink-0 space-y-3">
+      <div className="flex-1 min-w-0 overflow-x-hidden bg-muted/50 rounded-xl p-3 lg:p-6 flex justify-start lg:justify-center">
+        <div className="w-full lg:w-auto min-w-0 lg:shrink-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {!textEditing ? (
               <Button variant="outline" size="sm" onClick={startTextEditing}>
@@ -626,7 +641,8 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
               </button>
             </div>
           )}
-          <div className="shadow-2xl">
+          <DocumentPreviewFrame ref={frameRef} editing={textEditing}>
+          <div className="shadow-2xl w-fit">
           <EditableDocument
             editing={textEditing}
             html={editedHtml}
@@ -648,6 +664,31 @@ export function ZgodaTab({ editingContract = null, onExitEdit }: ZgodaTabProps) 
           />
           </EditableDocument>
           </div>
+          </DocumentPreviewFrame>
+
+          <div className="mobile-action-bar lg:hidden border-t bg-card px-3 pt-3">
+            <div className="flex gap-2">
+              <Button
+                onClick={handleDownloadPdf}
+                className="flex-1 brand-gradient text-white border-0 hover:opacity-90"
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                Pobierz PDF
+              </Button>
+              {isEditing ? (
+                <Button onClick={handleSaveChanges} variant="outline" disabled={saving}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Zapisz
+                </Button>
+              ) : (
+                <Button onClick={handleConfirm} variant="outline" disabled={saving || !orgId}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Zatwierdź
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="h-20 lg:hidden" aria-hidden />
         </div>
       </div>
     </div>

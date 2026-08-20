@@ -183,17 +183,18 @@ export function SettingsTab() {
             <p className="text-sm text-muted-foreground">Brak firm. Dodaj pierwszą poniżej.</p>
           )}
           {companies.map((c) => (
-            <div key={c.id} className="flex items-start gap-3 rounded-lg border p-3">
+            <div key={c.id} className="flex flex-col md:flex-row md:items-start gap-2 md:gap-3 rounded-lg border p-3">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{c.address}</p>
-                <p className="text-xs text-muted-foreground truncate">
+                <p className="font-medium text-foreground break-words md:truncate">{c.name}</p>
+                <p className="text-xs text-muted-foreground break-words md:truncate">{c.address}</p>
+                <p className="text-xs text-muted-foreground break-words md:truncate">
                   {c.nip && <>NIP: {c.nip} · </>}
                   {c.krs && <>KRS: {c.krs} · </>}
                   {c.regon && <>REGON: {c.regon}</>}
                 </p>
               </div>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+              <div className="flex items-center gap-1 md:contents">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 mr-auto md:mr-0">
                 <Switch
                   checked={!!c.is_default}
                   onCheckedChange={(v) => setDefaultParty("companies", c.id, v)}
@@ -222,6 +223,7 @@ export function SettingsTab() {
               <Button variant="ghost" size="icon" onClick={() => removeCompany(c.id)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -233,7 +235,7 @@ export function SettingsTab() {
           </div>
           <div>
             <Label htmlFor="cNip">NIP</Label>
-            <Input id="cNip" value={companyForm.nip} onChange={(e) => setCompanyForm({ ...companyForm, nip: e.target.value })} />
+            <Input id="cNip" autoCapitalize="off" autoCorrect="off" value={companyForm.nip} onChange={(e) => setCompanyForm({ ...companyForm, nip: e.target.value })} />
           </div>
           <div>
             <Label htmlFor="cAddr">Adres firmy</Label>
@@ -241,11 +243,11 @@ export function SettingsTab() {
           </div>
           <div>
             <Label htmlFor="cKrs">KRS</Label>
-            <Input id="cKrs" value={companyForm.krs} onChange={(e) => setCompanyForm({ ...companyForm, krs: e.target.value })} />
+            <Input id="cKrs" autoCapitalize="off" autoCorrect="off" value={companyForm.krs} onChange={(e) => setCompanyForm({ ...companyForm, krs: e.target.value })} />
           </div>
           <div>
             <Label htmlFor="cRegon">REGON</Label>
-            <Input id="cRegon" value={companyForm.regon} onChange={(e) => setCompanyForm({ ...companyForm, regon: e.target.value })} />
+            <Input id="cRegon" autoCapitalize="off" autoCorrect="off" value={companyForm.regon} onChange={(e) => setCompanyForm({ ...companyForm, regon: e.target.value })} />
           </div>
           <div>
             <Label htmlFor="cCity">Miejscowość</Label>
@@ -284,13 +286,14 @@ export function SettingsTab() {
             <p className="text-sm text-muted-foreground">Brak wykonawców. Dodaj pierwszego poniżej.</p>
           )}
           {contractors.map((c) => (
-            <div key={c.id} className="flex items-start gap-3 rounded-lg border p-3">
+            <div key={c.id} className="flex flex-col md:flex-row md:items-start gap-2 md:gap-3 rounded-lg border p-3">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{c.address}</p>
-                {c.pesel && <p className="text-xs text-muted-foreground truncate">PESEL: {c.pesel}</p>}
+                <p className="font-medium text-foreground break-words md:truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground break-words md:truncate">{c.address}</p>
+                {c.pesel && <p className="text-xs text-muted-foreground break-words md:truncate">PESEL: {c.pesel}</p>}
               </div>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+              <div className="flex items-center gap-1 md:contents">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 mr-auto md:mr-0">
                 <Switch
                   checked={!!c.is_default}
                   onCheckedChange={(v) => setDefaultParty("contractors", c.id, v)}
@@ -320,6 +323,7 @@ export function SettingsTab() {
               <Button variant="ghost" size="icon" onClick={() => removeContractor(c.id)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -331,7 +335,7 @@ export function SettingsTab() {
           </div>
           <div>
             <Label htmlFor="wPesel">PESEL</Label>
-            <Input id="wPesel" value={contractorForm.pesel} onChange={(e) => setContractorForm({ ...contractorForm, pesel: e.target.value })} />
+            <Input id="wPesel" autoCapitalize="off" autoCorrect="off" value={contractorForm.pesel} onChange={(e) => setContractorForm({ ...contractorForm, pesel: e.target.value })} />
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="wAddr">Adres zamieszkania</Label>
@@ -339,7 +343,7 @@ export function SettingsTab() {
           </div>
           <div>
             <Label htmlFor="wDoc">Dokument (paszport / karta pobytu)</Label>
-            <Input id="wDoc" value={contractorForm.document_number} onChange={(e) => setContractorForm({ ...contractorForm, document_number: e.target.value })} placeholder="GM408049" />
+            <Input id="wDoc" autoCapitalize="off" autoCorrect="off" value={contractorForm.document_number} onChange={(e) => setContractorForm({ ...contractorForm, document_number: e.target.value })} placeholder="GM408049" />
           </div>
           <div>
             <Label htmlFor="wTax">Urząd Skarbowy</Label>
@@ -347,7 +351,7 @@ export function SettingsTab() {
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="wBank">Nr konta bankowego</Label>
-            <Input id="wBank" value={contractorForm.bank_account} onChange={(e) => setContractorForm({ ...contractorForm, bank_account: e.target.value })} placeholder="PL00 0000 0000 0000 0000 0000 0000" />
+            <Input id="wBank" autoCapitalize="off" autoCorrect="off" value={contractorForm.bank_account} onChange={(e) => setContractorForm({ ...contractorForm, bank_account: e.target.value })} placeholder="PL00 0000 0000 0000 0000 0000 0000" />
           </div>
           <div>
             <Label htmlFor="wEmail">E-mail</Label>
@@ -413,20 +417,23 @@ export function SettingsTab() {
               <p className="text-sm text-muted-foreground">Brak liczników dla tej organizacji.</p>
             )}
             {counters.map((c) => (
-              <div key={c.period_key} className="flex items-center gap-2 rounded-lg border p-3">
-                <span className="font-medium text-foreground text-sm w-24 shrink-0">{c.period_key}</span>
+              <div key={c.period_key} className="flex flex-col md:flex-row md:items-center gap-2 rounded-lg border p-3">
+                <span className="font-medium text-foreground text-sm md:w-24 md:shrink-0">{c.period_key}</span>
                 <Input
                   type="number"
+                  inputMode="numeric"
                   min={0}
-                  className="w-28"
+                  className="w-full md:w-28"
                   value={counterDrafts[c.period_key] ?? ""}
                   onChange={(e) =>
                     setCounterDrafts({ ...counterDrafts, [c.period_key]: e.target.value })
                   }
                 />
+                <div className="flex gap-2 md:contents">
                 <Button
                   size="sm"
                   variant="outline"
+                  className="flex-1 md:flex-none"
                   disabled={savingKey === c.period_key}
                   onClick={() => {
                     const v = Number(counterDrafts[c.period_key]);
@@ -445,11 +452,13 @@ export function SettingsTab() {
                 <Button
                   size="sm"
                   variant="ghost"
+                  className="flex-1 md:flex-none"
                   disabled={savingKey === c.period_key}
                   onClick={() => saveCounter(c.period_key, 0)}
                 >
                   Wyzeruj
                 </Button>
+                </div>
               </div>
             ))}
           </div>
