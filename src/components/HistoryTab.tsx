@@ -85,18 +85,18 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
   };
 
 
-  const handleServerPdf = async (row: ContractRow) => {
+  const handleServerPdf = async (row: ContractRow, document: "umowa" | "rachunek" = "umowa") => {
     setDownloadingId(row.id);
     try {
       const { data, error } = await supabase.functions.invoke("generate-contract-pdf", {
-        body: { contract_id: row.id },
+        body: { contract_id: row.id, document },
       });
       if (error) throw error;
       const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `UOD-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
+      a.download = `${document === "rachunek" ? "RACHUNEK" : "UOD"}-${row.number.replace(/[^\p{L}\p{N}\-_.]/gu, "-")}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -297,6 +297,16 @@ export function HistoryTab({ onOpenContract }: HistoryTabProps) {
                       >
                         <FileDown className="mr-2 h-4 w-4" />
                         Pobierz PDF (serwer)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleServerPdf(r, "rachunek");
+                        }}
+                        disabled={downloadingId === r.id}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Pobierz rachunek (serwer)
                       </DropdownMenuItem>
                       {isAdmin && r.status !== "archived" && (
                         <DropdownMenuItem
